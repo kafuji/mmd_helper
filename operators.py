@@ -254,8 +254,8 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
                 else:
                     prefix = ''
                     name = obj.name
-            
-                prefix = f"{index:03d}_"
+                # index to 0~Z (36) base36
+                prefix = f"{index:03X}_"
                 obj.name = prefix + name
 
         return {"FINISHED"}
