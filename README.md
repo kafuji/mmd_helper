@@ -24,6 +24,8 @@ mmd_tools is needed to use this addon.
 The user bone definition is a CSV file that contains the mapping of the bone names.
 It will append the bone definitions to the default bone definitions.
 
+Default bone definition contains Semi Standard Bone (準標準ボーン) set.
+
 ### Example of user bone definition:
 
 ```csv
