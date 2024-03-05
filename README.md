@@ -69,4 +69,4 @@ SOFTWARE.
 # Author
 
 - Kafuji Sato
-- [GitHub: @kafuji](https://github.com/kafuji/)
+  - [GitHub: @kafuji](https://github.com/kafuji/)
