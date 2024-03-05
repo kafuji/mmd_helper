@@ -16,6 +16,7 @@ from . import panels
 from . import properties
 from . import translation
 from . import preferences
+from . import contextmenu
 
 ################################################################################
 # Register & Unregister
@@ -32,11 +33,13 @@ def register():
 
     operators.register()
     panels.register()
+    contextmenu.register()
     return
 
 
 # Unregister This Addon
 def unregister():
+    contextmenu.unregister()
     panels.unregister()
     operators.unregister()
     preferences.unregister()

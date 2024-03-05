@@ -76,7 +76,7 @@ def enum_bones_callback(scene, context):
 # returns list of bone_id, filtered by is_essential
 def bone_id_list(only_essentials):
     if only_essentials:
-        return [id for id, ent in _bone_table.items() if ent[2]]
+        return [id for id, ent in _bone_table.items() if ent[2] is True]
     return _bone_table.keys()
 
 

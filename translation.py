@@ -64,6 +64,9 @@ def register():
                     (cat, eng, trans) = array
                     if cat == '':
                         cat = '*'
+                    elif cat == 'O':
+                        cat = 'Operator'
+
                     if eng=='' or trans=='':
                         continue
 
