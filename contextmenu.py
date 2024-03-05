@@ -5,11 +5,14 @@ class MH_PT_context_menu(bpy.types.Menu):
     bl_label = "PMX Export Helper"
 
     def draw(self, context):
-        layout = self.layout
-        layout.operator("mmd_tools.export_pmx", text="Export PMX")
-        layout.operator("mmd_tools.import_model", text="Import PMX/PMD")
-        layout.operator("mmd_tools.import_vmd", text="Import VMD")
-        layout.operator("mmd_tools.export_vmd", text="Export VMD")
+        l = self.layout
+        op = l.operator("mmd_tools.export_pmx", text="Export PMX")
+        op.copy_textures = False
+        op.visible_meshes_only = True
+        
+        l.operator("mmd_tools.import_model", text="Import PMX/PMD")
+        l.operator("mmd_tools.import_vmd", text="Import VMD")
+        l.operator("mmd_tools.export_vmd", text="Export VMD")
 
 def menu_func(self, context):  
     self.layout.separator()
