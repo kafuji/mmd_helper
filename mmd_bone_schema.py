@@ -161,7 +161,7 @@ def load_user_bones_from_csv(filepath):
             array = line.split(',')
             if len(array) != 5:
                 continue
- 
+
             (cat, id, name_j, name_e, essential) = [i.strip() for i in array]
 
             if cat not in _cat_table.keys():
