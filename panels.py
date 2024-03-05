@@ -1,0 +1,571 @@
+################################################################################
+# Custom Panels
+################################################################################
+from unicodedata import name
+import bpy
+
+from . import mmd_bone_schema as schema
+from . import helpers
+
+import addon_utils
+
+
+# Root Panel
+class MH_PT_PMX_ExportHelper(bpy.types.Panel):
+	bl_label = "PMX Export Helper"
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
+	bl_category = "MMD"
+
+	@classmethod
+	def poll(cls, context):
+		return addon_utils.check('mmd_tools')[0] # active only with mmd_tools
+
+	def draw(self,context):
+		return
+
+# Bone Naming Helper
+class MH_PT_BoneNamingHelper(bpy.types.Panel):
+	bl_label = "Bone Naming Helper"
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
+	bl_category = "MMD"
+	bl_parent_id = "MH_PT_PMX_ExportHelper"
+
+	def draw(self,context):
+		return
+
+# Bone Mapping Tool
+class MH_PT_BoneMapper(bpy.types.Panel):
+	bl_label = "Bone naming by definitions"
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
+	bl_category = "MMD"
+	bl_parent_id = "MH_PT_BoneNamingHelper"
+
+	def _draw_bone_mapping_ui(self, context, arm, layout):
+		props = context.window_manager.mh_props
+		grid = layout.grid_flow(row_major=True)
+		grid.use_property_decorate = True
+		grid.column().prop(props, 'use_english')
+		grid.column().prop(props, 'show_suffix')
+		grid.column().prop(props, 'show_mmd_bone')
+		grid.column().prop(props, 'max_display')
+		schema.use_english(props.use_english)
+
+		bones = None
+		if context.mode in ('EDIT_ARMATURE'):
+			bones = context.selected_bones
+		elif context.mode in ('POSE'):
+			bones = context.selected_pose_bones
+		
+		ui_max_count = props.max_display
+
+		layout.separator()
+		if bones is not None and len(bones):
+			for i, bone in enumerate(bones):
+
+				if i==ui_max_count:
+					box.label(text=f'... and more {len(bones)-ui_max_count} bones...')
+					break
+				
+				pbone = arm.pose.bones.get(bone.name)
+				if not pbone:
+					continue
+				
+				box =layout.box()
+				row = box.split(align=True)
+				row.prop( bone, 'name', text='', icon='BONE_DATA')
+				row.prop( pbone, 'mmd_bone_map', text='')
+				if props.show_suffix:
+					row.prop( pbone, 'mmd_bone_suffix')
+				if props.show_mmd_bone:
+					row = box.split(align=True)
+					row.prop( pbone.mmd_bone, 'name_j', text='Japanese')
+					row.prop( pbone.mmd_bone, 'name_e', text='English')
+		else:
+			layout.box().label(text='Select any bone')
+
+		# list undefined bones            
+		box = layout.box()
+		row = box.row()
+		row.label(text='Undefined Bones', icon='ERROR')
+		row.prop(props, 'alert_only_essentials', toggle=True )
+
+		defined = [b.mmd_bone_map for b in arm.pose.bones if b.mmd_bone_map !='NONE']
+		undefined_bones = set(schema.bone_id_list(props.alert_only_essentials)) - set(defined)
+
+		if len(undefined_bones):
+			grid = box.grid_flow(row_major=True, columns=0,even_columns=False, even_rows=False, align=False)
+			grid.alert = True
+			for id in undefined_bones:
+				grid.column().label(
+					text = bpy.app.translations.pgettext(schema.bone_category_name(id))+': '+schema.bone_name(id, props.use_english), 
+					icon='BONE_DATA'
+					)
+		else:
+			box.label(text='All bones are set!', icon='INFO')
+
+		return len(undefined_bones) == 0
+
+	def draw(self, context):
+		arm = context.active_object
+		layout = self.layout
+
+		col = layout.column()
+		if not arm or not arm.pose:
+			col.label(text='Select any armature')
+			return
+
+		self._draw_bone_mapping_ui(context, arm, col)
+		col.operator('mmd_helper.apply_mmd_bone_mappings', icon='COPYDOWN')
+		col.operator('mmd_helper.clear_mmd_bone', icon='REMOVE')
+
+		return
+
+
+# Adittional Bone definition panel
+class MH_PT_AdditoinalPMXBones(bpy.types.Panel):
+	bl_label = "Define Additional PMX Bones"
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
+	bl_category = "MMD"
+	bl_parent_id = "MH_PT_BoneMapper"
+
+	def draw(self,context):
+		prefs = context.preferences.addons[__package__].preferences
+		layout = self.layout
+		l = layout.column(align=True)
+		l.label(text='Additional PMX bone definitions file:')
+		l.prop(prefs,'user_bones', text='')
+		l = l.row()
+		l.alert = True
+		l.label(text='Please save addon preferenses to keep this!')
+		return
+
+
+
+
+################################################################################
+class MH_OT_AddNamingRule(bpy.types.Operator):
+	bl_idname = "mmd_helper.add_naming_rule"
+	bl_label = "Add naming rule" 
+	bl_description = "Add new naming rule for naming mmd_bone.name_j"
+	bl_options = {"UNDO"}
+
+	# Main function
+	def execute(self, context):
+		rules = context.scene.mh_naming_rules
+		rules.data.add()
+		return {"FINISHED"}
+
+################################################################################
+class MH_OT_RemoveNamingRule(bpy.types.Operator):
+	bl_idname = "mmd_helper.remove_naming_rule"
+	bl_label = "Remove naming rule" 
+	bl_description = "Remove selected naming rule"
+	bl_options = {"UNDO"}
+
+	@classmethod
+	def poll(cls, context):
+		rules = context.scene.mh_naming_rules
+		return len(rules.data) and rules.active_index >= 0 and rules.active_index < len(rules.data)
+
+	# Main function
+	def execute(self, context):
+		rules = context.scene.mh_naming_rules
+		rules.data.remove(rules.active_index)
+		rules.active_index = max(rules.active_index-1, 0)
+		return {"FINISHED"}
+
+################################################################################
+class MH_OT_MoveUpNamingRule(bpy.types.Operator):
+	bl_idname = "mmd_helper.move_up_naming_rule"
+	bl_label = "Move up" 
+	bl_options = {"UNDO"}
+
+	@classmethod
+	def poll(cls, context):
+		rules = context.scene.mh_naming_rules
+		return len(rules.data)>1 and rules.active_index > 0 and rules.active_index < len(rules.data)
+
+	def execute(self, context):
+		root = context.scene.mh_naming_rules
+		idx = root.active_index
+		root.data.move(idx, idx-1)
+		root.active_index -= 1
+		return {"FINISHED"}
+
+################################################################################
+class MH_OT_MoveDownNamingRule(bpy.types.Operator):
+	bl_idname = "mmd_helper.move_down_naming_rule"
+	bl_label = "Move down" 
+	bl_options = {"UNDO"}
+
+	@classmethod
+	def poll(cls, context):
+		rules = context.scene.mh_naming_rules
+		return len(rules.data)>1 and rules.active_index >= 0 and rules.active_index < len(rules.data)-1
+
+	def execute(self, context):
+		root = context.scene.mh_naming_rules
+		idx = root.active_index
+		root.data.move(idx, idx+1)
+		root.active_index += 1
+		return {"FINISHED"}
+
+
+from bpy_extras.io_utils import ExportHelper
+import json
+################################################################################
+class MH_OT_SaveNamingRules(bpy.types.Operator, ExportHelper):
+	bl_idname = "mmd_helper.save_naming_rules"
+	bl_label = "Save naming rules" 
+	bl_description = "Save naming rules as json, for reusing in another workspace"
+	bl_options = set()
+
+	filename_ext = '.json'
+	filter_glob: bpy.props.StringProperty(
+		default='*.json',
+		options={'HIDDEN'}
+	)
+
+	@classmethod
+	def poll(self,context):
+		rules = context.scene.mh_naming_rules
+		return len(rules.data)
+
+	# Main function
+	def execute(self, context):
+		rules = context.scene.mh_naming_rules
+		
+		dic = {}
+		
+		dic['replace_lr'] = rules.replace_lr
+		for idx,rule in enumerate(rules.data):
+			
+			dic[idx] = {}
+			dic[idx]['use_regex'] = rule.use_regex
+			dic[idx]['search'] = rule.search
+			dic[idx]['replace_to'] = rule.replace_to
+
+		with open(self.filepath, 'w', encoding='utf-8') as fp:
+			json.dump(dic, fp, indent=4, ensure_ascii=False)
+		
+		return {"FINISHED"}
+
+from bpy_extras.io_utils import ImportHelper
+################################################################################
+class MH_OT_LoadNamingRules(bpy.types.Operator, ImportHelper):
+	bl_idname = "mmd_helper.load_naming_rules"
+	bl_label = "Load naming rules" 
+	bl_description = "Load naming rules from a json"
+	bl_options = {'REGISTER', 'UNDO'}
+
+	filename_ext = '.json'
+	filter_glob: bpy.props.StringProperty(
+		default='*.json',
+		options={'HIDDEN'}
+	)
+
+	# Main function
+	def execute(self, context):
+		dic = {}        
+		with open(self.filepath, 'r', encoding='utf-8') as fp:
+			dic = json.load(fp)
+
+		rules = context.scene.mh_naming_rules
+
+		rules.replace_lr = dic.get('replace_lr', True)
+		dic.pop('replace_lr')
+		for item in dic.values():
+			rule = rules.data.add()
+			rule.use_regex = item.get('use_regex', False)
+			rule.search = item.get('search', '')
+			rule.replace_to = item.get('replace_to', '')
+		
+		return {"FINISHED"}
+
+
+################################################################################
+class MH_OT_ExecuteNamingRule(bpy.types.Operator):
+	bl_idname = "mmd_helper.execute_naming_rule"
+	bl_label = "Execute naming rules"
+	bl_description = "On active armature(Object mode) or selected bones(Pose/Edit mode), execute rules to set mmd_bone.name_j"
+	bl_options = {"REGISTER","UNDO"}
+
+	target_all: bpy.props.BoolProperty(
+		name='For all bones',
+		description='Run this operator for all bones',
+		default=False
+	)
+
+	@classmethod
+	def poll(cls, context):
+		obj = context.active_object
+		return obj and obj.pose
+
+	# Main function
+	def execute(self, context):
+		arm = context.active_object
+		if context.mode == 'OBJECT':
+			targets = arm.pose.bones
+		else:
+			targets = context.selected_pose_bones if context.selected_pose_bones else context.selected_editable_bones
+
+		if self.target_all:
+			targets =arm.pose.bones
+		
+		rules = context.scene.mh_naming_rules
+
+		for b in targets:
+			pb = arm.pose.bones[b.name]
+			if pb.mmd_bone_map != 'NONE':
+				continue
+
+			name = b.name
+
+			if rules.replace_lr:
+				if helpers.get_lr_from_name(name):
+					lr = schema.get_lr_string(b.name)
+					name = lr + helpers.remove_lr_from_name(b.name)
+			
+			for rule in rules.data:
+				if not rule.search:
+					continue
+				if rule.use_regex:
+					continue
+
+				name = name.replace(rule.search, rule.replace_to)
+			
+			pb.mmd_bone.name_j = name
+
+		return {"FINISHED"}
+
+
+# UI List Item: Naming Rule
+class MH_UL_NamingRules(bpy.types.UIList):
+	def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+		row:bpy.types.UILayout = layout.row(align=True)
+		row.label(text='', icon='VIEWZOOM')
+		row.prop(item,'search', text='')
+		row.label(text='', icon='RIGHTARROW')
+		row.prop(item,'replace_to', text='')
+	
+	def draw_filter(self, context, layout):
+		return
+
+
+# Rule based naming tool
+class MH_PT_RuleBasedNamingTool(bpy.types.Panel):
+	bl_label = "Rule based naming"
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
+	bl_category = "MMD"
+	bl_parent_id = "MH_PT_BoneNamingHelper"
+
+	def draw(self,context):
+		layout = self.layout
+		rules = context.scene.mh_naming_rules
+
+		layout.label(text='Naming rules:')
+		row = layout.row(align=False)
+		row.prop(rules, 'replace_lr')
+
+		row = layout.row()
+		row.template_list(
+			'MH_UL_NamingRules', '',
+			rules, 'data',
+			rules, 'active_index',
+			rows=6
+		)
+		col=row.column(align=True)
+		col.operator
+		col.operator('mmd_helper.add_naming_rule', text='', icon='ADD')
+		if len(rules.data):
+			col.operator('mmd_helper.remove_naming_rule', text='', icon='REMOVE')
+		if len(rules.data)>1:
+			col.separator()
+			col.operator('mmd_helper.move_up_naming_rule', text='', icon='TRIA_UP')
+			col.operator('mmd_helper.move_down_naming_rule', text='', icon='TRIA_DOWN')
+		
+		col.separator()
+		col.operator('mmd_helper.load_naming_rules', text='', icon='FILEBROWSER')
+		if len(rules.data):
+			col.operator('mmd_helper.save_naming_rules', text='', icon='FILE_TICK')
+
+
+		if 0:
+			for idx, rule in enumerate(rules.data):
+				box = layout.column(align=True)
+				row=box.row(align=True)
+				row.prop(rule, 'search', text='', icon='VIEWZOOM' )
+				row.label(text='', icon='RIGHTARROW')
+				row.prop(rule, 'replace_to', text='' )
+				row.separator()
+				row.operator('mmd_helper.remove_naming_rule', text='', icon='REMOVE').idx = idx
+				#row = box.row(align=True)
+				#row.prop(rule, 'use_regex')
+
+		layout.operator('mmd_helper.execute_naming_rule')
+		row=layout.row(align=True)
+
+		return
+
+
+
+# Material Setting Tool
+class MH_PT_MaterialSettingTool(bpy.types.Panel):
+	bl_label = "Material Settings Helper"
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
+	bl_category = "MMD"
+	bl_parent_id = "MH_PT_PMX_ExportHelper"
+
+	def draw(self,context):
+		layout = self.layout
+		layout.operator('mmd_helper.load_material_from_csv')
+		layout.operator('mmd_helper.clear_mmd_material_names')
+		return
+
+
+
+class MH_PT_BoneMorphTool(bpy.types.Panel):
+	bl_label = "Bone Morph Helper"
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
+	bl_category = "MMD"
+	bl_parent_id = "MH_PT_PMX_ExportHelper"
+
+	def draw(self,context):
+		layout = self.layout
+		layout.operator('mmd_helper.bonemorph_to_poselib')
+		layout.operator('mmd_helper.poselib_to_bonemorph')
+		layout.operator('mmd_helper.poselib_to_csv')
+		return
+
+
+class MH_PT_MineDetector(bpy.types.Panel):
+	bl_label = "Mine Detector"
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
+	bl_category = "MMD"
+	bl_parent_id = "MH_PT_PMX_ExportHelper"
+
+	def draw(self,context):
+		arm = context.active_object
+		layout = self.layout
+
+		layout.label(text='Detects flaws that harms export result', icon='INFO')		
+
+		col = layout.column()
+		if not arm or not arm.pose:
+			col.label(text='Select any armature')
+			return
+
+		row = col.row(align=True)
+		row.alignment = 'LEFT'
+		row.label(text="Armature", icon='ARMATURE_DATA')
+		row.label(text=arm.name)	
+
+		box = layout.box()
+		col = box.column()
+
+		# check MMD bone name duplication
+		col.label(text='MMD Bone Name Collision:', icon='BONE_DATA')
+
+		used_names = set()
+		duplicated = list()
+
+		for pbone in arm.pose.bones:
+			name_j = pbone.mmd_bone.name_j
+			if not name_j:
+				continue
+
+			if name_j in used_names:
+				duplicated.append(name_j)
+			else:
+				used_names.add(name_j)
+			
+		
+		if duplicated:
+			for name in duplicated:
+				for pbone in arm.pose.bones:
+					if pbone.mmd_bone.name_j == name:
+						col.prop(pbone.mmd_bone, 'name_j', text=pbone.name, icon='ERROR')
+		else:
+			col.label(text='None', icon='INFO')
+
+		box = layout.box()
+		col = box.column()
+		col.label(text="MMD Material Name Collision:", icon='MATERIAL_DATA')
+		used_names = set()
+		mat_dup = list()
+		obj_in_model = set( [o for o in bpy.data.objects if o.find_armature() == arm] )
+		mats_in_model = set( [m for o in obj_in_model for m in o.data.materials] )
+		for mat in mats_in_model:
+			name = mat.mmd_material.name_j
+			if not name:
+				continue
+			if name in used_names:
+				mat_dup.append(name)
+			else:
+				used_names.add(name)
+
+		if mat_dup:
+			for name in mat_dup:
+				for mat in mats_in_model:
+					if mat.mmd_material.name_j == name:
+						col.prop(mat.mmd_material, 'name_j', text=mat.name, icon='ERROR')
+		else:
+			col.label(text='None', icon='INFO')
+
+
+		# check object bound to armature is not child of armature
+		box = layout.box()
+		col = box.column()
+		col.label(text="Object not belongs to the model:", icon='OBJECT_DATA')
+		obj_not_in_model = list()
+		children = list( arm.children_recursive )
+		for obj in obj_in_model:
+			if obj not in children:
+				obj_not_in_model.append(obj)
+		
+		if obj_not_in_model:
+			for obj in obj_not_in_model:
+				col.prop(obj, 'parent', text=obj.name, icon='ERROR')
+		else:
+			col.label(text='None', icon='INFO')
+
+
+# register & unregister
+_panels = [
+	MH_PT_PMX_ExportHelper,
+	MH_PT_BoneNamingHelper,
+	MH_PT_BoneMapper,
+	MH_UL_NamingRules,
+	MH_PT_RuleBasedNamingTool,
+	MH_PT_AdditoinalPMXBones,
+	MH_PT_MaterialSettingTool,
+	MH_PT_MineDetector,
+]
+
+
+import inspect,sys
+def register():
+	ops = [c[1] for c in inspect.getmembers(sys.modules[__name__], inspect.isclass) if "_OT_" in c[0]]
+	for c in ops:
+		bpy.utils.register_class(c)
+
+	for c in _panels:
+		bpy.utils.register_class(c)
+
+def unregister():
+	for c in reversed(_panels):
+		bpy.utils.unregister_class(c)
+		
+	ops = [c[1] for c in inspect.getmembers(sys.modules[__name__], inspect.isclass) if "_OT_" in c[0]]
+	for c in ops:
+		bpy.utils.unregister_class(c)
+
+	
