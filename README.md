@@ -1,7 +1,11 @@
 # PMX Export helper for mmd_tools
 
-This is a Blender addon that provides a set of tools to help exporting PMX files for MMD.
-mmd_tools is needed to use this addon.
+This is a Blender addon that provides a set of tools to help exporting PMX files for MMD by using mmd_tools.
+
+## Requirements:
+
+- Blender 3.0, 4.0 series
+- recent mmd_tools
 
 ## Features:
 
@@ -18,13 +22,23 @@ mmd_tools is needed to use this addon.
 3. Look for the PMX Export Helper panel.
 4. Explore the features.
 
+## Bone Mapping Utility:
 
-## User bone definition:
+Yet mmd_tools uses bone.mmd_bone.name_j and name_e to export PMX, it is hard to set them manually. This tool provides a way to map the bone names by using bone name definitions.
+
+It supports Semi-Standard Bone set by default, and you can customize the bone name definitions by using a CSV file.
+
+- In pose mode or armature edit mode, select any bone you want to map.
+- Slected bones will be listed in the bone list on the panel.
+- Configure bone mapping by using the pulldown menu.
+- After all bones are mapped, click "Apply" button to apply the mapping to the armature.
+- It will set mmd_bone.name_j and name_e to the bone. LR prefix will be automatically generated.
+
+### User bone definition:
 
 The user bone definition is a CSV file that contains the mapping of the bone names.
 It will append the bone definitions to the default bone definitions.
-
-Default bone definition contains Semi Standard Bone (準標準ボーン) set.
+If you have your standard bone set that needs to be translated in MMD, make one by yorself and load it from the panel.
 
 ### Example of user bone definition:
 
@@ -42,6 +56,35 @@ PHYS,THIGH,腿,thigh,False
 - Japanese: The Japanese name of the bone. LR prefix "左" and "右" will be automatically generated.
 - English: The English name of the bone. LR prefix "left" and "right" will be automatically generated.
 - IsEssential?: If the bone is essential for the model. It can be "True" or "False". This is used for warn the user if the bone is not mapped in the model.
+
+
+## Rule based renaming tool:
+
+This tool also sets mmd_bone.name_j and name_e to the bone.
+Unlike the bone mapping utility, you can use your own renaming rules.
+
+## Material settings and sort order loader:
+
+This tool loads mmd_material settings and material/object sort order from CSV file from PMX Editor.
+The CSV file must be created by using the PMX Editor's "Export as CSV" feature in the materials panel.
+
+You can choose actions individually:
+  - Update Material.mmd_material settings.
+  - Sort materials / objects along with CSV row order.
+
+These features help you to export updated model to existing PMX file.
+
+Notice: The CSV file must be encoded in UTF-8. Older versions of PMX Editor may produce Shift-JIS encoded CSV file. Please use recent version of PMX Editor to export CSV file in UTF-8.
+
+
+## Mine Sweeper:
+
+This panel detects errors and flaws that leads unexpected result.
+Such as:
+
+- Material name conflict (same name_j or name_e on different materials)
+- Bone name conflict (same name_j or name_e on different bones)
+- Object not belongs to the model (not parented to the armature)
 
 
 # Licence
