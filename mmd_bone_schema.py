@@ -108,6 +108,21 @@ def get_lr_string(name, eng=False):
     }
     return lr_map['e'][lr] if eng else lr_map['j'][lr]
 
+# convert mmd bone name to blender friendly name, e.g. '左足首' to '足首.L'
+def convert_mmd_bone_name_to_blender_friendly(name:str) -> str:
+    if name.startswith('左'):
+        return name[1:] + '.L'
+    if name.startswith('右'):
+        return name[1:] + '.R'
+    if name.startswith('left '):
+        return name[5:] + '.L'
+    if name.startswith('right '):
+        return name[6:] + '.R'
+    
+    return name
+
+
+
 
 # apply bone map. set mmd_bone.name_j and name_e
 def apply_bone_map(bone):

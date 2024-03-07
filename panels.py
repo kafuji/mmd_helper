@@ -121,6 +121,12 @@ class MH_PT_BoneMapper(bpy.types.Panel):
 		col.operator('mmd_helper.apply_mmd_bone_mappings', icon='COPYDOWN')
 		col.operator('mmd_helper.clear_mmd_bone', icon='REMOVE')
 
+		col.separator()
+		col.label(text="Extra:")
+		row = col.row(align=True)
+		row.operator('mmd_helper.apply_mmd_bone_names', icon='COPYDOWN')
+		row.operator('mmd_helper.restore_bone_names', icon='RECOVER_LAST')
+
 		return
 
 

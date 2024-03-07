@@ -37,6 +37,17 @@ class MH_OT_ClearMMDBoneNames(bpy.types.Operator):
         default=False
     )
 
+    j_or_e: EnumProperty(
+        name='Target',
+        items=[
+            ('NAME_J', 'name_j', 'mmd_bone.name_j (Japanese)'),
+            ('NAME_E', 'name_e', 'mmd_bone.name_e (English)'),
+        ],
+        options = {'ENUM_FLAG'},
+        default = {'NAME_J', 'NAME_E'}
+    )
+
+
     # This Operator is Active,only when armature and meshes are selected
     @classmethod
     def poll(cls, context):
@@ -56,10 +67,99 @@ class MH_OT_ClearMMDBoneNames(bpy.types.Operator):
 
         for bone in bones:
             b = arm.pose.bones[bone.name]
-            b.mmd_bone.name_j = ''
-            b.mmd_bone.name_e = ''
+            if 'NAME_J' in self.j_or_e:
+                b.mmd_bone.name_j = ''
+            if 'NAME_E' in self.j_or_e:
+                b.mmd_bone.name_e = ''
 
         return {"FINISHED"}
+
+
+################################################################################
+# apply mmd_bone.names to actual bone names
+class MH_OT_ApplyMMDBoneNames(bpy.types.Operator):
+    bl_idname = "mmd_helper.apply_mmd_bone_names"
+    bl_label = "Apply mmd_bone.name" 
+    bl_description = "Apply mmd_bone.name_j or name_e to actual bone names on active armature (can be restored later)"
+    bl_options = {"REGISTER","UNDO"}
+
+    j_or_e: EnumProperty(
+        name='Target',
+        items=[
+            ('NAME_J', 'name_j', 'mmd_bone.name_j (Japanese)'),
+            ('NAME_E', 'name_e', 'mmd_bone.name_e (English)'),
+        ],
+        default = 'NAME_J'
+    )
+
+    convert_lr: BoolProperty(
+        name='Convert LR Identifiers',
+        description="Convert MMD's LR identifier to Blender .L/.R suffixes",
+        default=True
+    )
+
+    #show options first
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+
+    @classmethod
+    def poll(cls, context):
+        o = context.object
+        if o and o.pose and not o.get('mmd_helper.bone_name_applied'):
+            return True
+
+    # Main function
+    def execute(self, context):
+        arm = context.object
+        for bone in arm.pose.bones:
+            b = arm.pose.bones[bone.name]
+            name = b.mmd_bone.name_j if 'NAME_J' in self.j_or_e else b.mmd_bone.name_e
+            if self.convert_lr:
+                name = schema.convert_mmd_bone_name_to_blender_friendly(name)
+
+            if name:
+                b.mmd_bone['original_name'] = bone.name
+                b.name = name
+            else:
+                print(f"Bone {b.name} has no mmd_bone.name_{self.j_or_e}. Skipping...")
+
+        arm['mmd_helper.bone_name_applied'] = self.j_or_e
+
+        return {"FINISHED"}
+
+################################################################################
+class MH_OT_RestoreBoneNames(bpy.types.Operator):
+    bl_idname = "mmd_helper.restore_bone_names"
+    bl_label = "Restore Bone Names" 
+    bl_description = "Restore original bone names using stored original names on active armature"
+    bl_options = {"REGISTER","UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        o = context.object
+        if o and o.pose and o.get('mmd_helper.bone_name_applied'):
+            return True
+
+        return False
+
+    # Main function
+    def execute(self, context):
+        arm = context.object
+        for bone in arm.pose.bones:
+            b = arm.pose.bones[bone.name]
+            original_name = b.mmd_bone.get('original_name')
+            if original_name:
+                b.name = original_name
+            else:
+                print(f"Bone {b.name} has no original name. Skipping...")
+            
+        del arm['mmd_helper.bone_name_applied']
+
+        return {"FINISHED"}
+
+
+
 
 
 from bpy_extras.io_utils import ImportHelper
