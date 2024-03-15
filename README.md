@@ -44,14 +44,14 @@ If you have your standard bone set that needs to be translated in MMD, make one 
 
 ```csv
 CATEGORY_ID,BONE_ID,Japanese,English,IsEssential?
-HEAD,JAW,顎,jaw,False
+FACIAL,JAW,顎,jaw,False
 PHYS,BREAST,胸,breast,False
 PHYS,BELLY,おなか,belly,False
 PHYS,THIGH,腿,thigh,False
 ```
 
 
-- CATEGORY_ID: The category of the bone. It can be any string.
+- CATEGORY_ID: The category of the bone. Any of {'ROOT', 'TORSO', 'FACIAL', 'ARMS', 'LEGS', 'FINGERS', 'IK', 'PHYS', 'OTHER'}
 - BONE_ID: The bone identifier. It can be any string.
 - Japanese: The Japanese name of the bone. LR prefix "左" and "右" will be automatically generated.
 - English: The English name of the bone. LR prefix "left" and "right" will be automatically generated.
