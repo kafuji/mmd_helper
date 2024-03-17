@@ -418,6 +418,18 @@ class MH_PT_RuleBasedNamingTool(bpy.types.Panel):
 
 		return
 
+# Bone sort orrder setting Tool
+class MH_PT_BoneSortOrderTool(bpy.types.Panel):
+	bl_label = "Bone Order Setting Helper"
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
+	bl_category = "MMD"
+	bl_parent_id = "MH_PT_PMX_ExportHelper"
+
+	def draw(self,context):
+		l = self.layout
+		l.label(text="Helps setting PMX bone order")
+		return
 
 
 # Material Setting Tool
@@ -552,6 +564,7 @@ _panels = [
 	MH_UL_NamingRules,
 	MH_PT_RuleBasedNamingTool,
 	MH_PT_AdditoinalPMXBones,
+	MH_PT_BoneSortOrderTool,
 	MH_PT_MaterialSettingTool,
 	MH_PT_MineDetector,
 ]

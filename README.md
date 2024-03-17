@@ -4,7 +4,7 @@ This is a Blender addon that provides a set of tools to help exporting PMX files
 
 ## Requirements
 
-- Blender 3.0, 4.0 series
+- Blender 3 and 4 series
 - recent mmd_tools
 
 ## Features
