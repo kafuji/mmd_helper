@@ -6,13 +6,24 @@ class MH_PT_context_menu(bpy.types.Menu):
 
     def draw(self, context):
         l = self.layout
-        op = l.operator("mmd_tools.export_pmx", text="Export PMX")
-        op.copy_textures = False
-        op.visible_meshes_only = True
+
+        obj = context.active_object
+        if not obj:
+            return
+
+        if obj.type == 'ARMATURE':
+            op = l.operator("mmd_tools.export_pmx", text="Export PMX")
+            op.copy_textures = False
+            op.visible_meshes_only = True
+            l.separator()
         
-        l.operator("mmd_tools.import_model", text="Import PMX/PMD")
-        l.operator("mmd_tools.import_vmd", text="Import VMD")
-        l.operator("mmd_tools.export_vmd", text="Export VMD")
+            l.operator("mmd_tools.import_model", text="Import PMX/PMD")
+            l.operator("mmd_tools.import_vmd", text="Import VMD")
+            l.operator("mmd_tools.export_vmd", text="Export VMD")
+        elif obj.type == 'MESH':
+            l.operator("mmd_helper.quick_export_objects")
+        
+        return
 
 def menu_func(self, context):  
     self.layout.separator()

@@ -67,6 +67,16 @@ PHYS,THIGH,腿,thigh,False
 This tool also sets mmd_bone.name_j and name_e to the bone.
 Unlike the bone mapping utility, you can use your own renaming rules.
 
+## Load Bone settings from CSV file
+
+This tool loads mmd_bone settings from CSV file from PMX Editor.
+
+You can choose actions individually:
+
+- Update mmd_bone settings.
+- Sort mmd bones along with CSV row order.
+  - It creates representive object '[Armature Name]_bone_order' that stores the bone order.
+
 ## Material settings and sort order loader
 
 This tool loads mmd_material settings and material/object sort order from CSV file from PMX Editor.
@@ -117,11 +127,7 @@ SOFTWARE.
 - **Kafuji Sato** - VR Character Workshop
   - [Twitter](https://twitter.com/kafuji)
   - [GitHub](https://kafuji.github.io)
-  - [Fantia](https://fantia.jp/fanclubs/3967)
-  - [Fanbox](https://kafuji.fanbox.cc/)
-  - [Gumroad](https://kafuji.gumroad.com)
-  - [Blender Market](https://blendermarket.com/creators/kafuji)
 
 ## Copyright
 
-© 2022 Kafuji Sato
+© 2022 Kafuji Sato, all rights reserved.

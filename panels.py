@@ -419,8 +419,8 @@ class MH_PT_RuleBasedNamingTool(bpy.types.Panel):
 		return
 
 # Bone sort orrder setting Tool
-class MH_PT_BoneSortOrderTool(bpy.types.Panel):
-	bl_label = "Bone Order Setting Helper"
+class MH_PT_BoneSettigsTool(bpy.types.Panel):
+	bl_label = "Bone Settings Helper"
 	bl_space_type = "VIEW_3D"
 	bl_region_type = "UI"
 	bl_category = "MMD"
@@ -428,7 +428,7 @@ class MH_PT_BoneSortOrderTool(bpy.types.Panel):
 
 	def draw(self,context):
 		l = self.layout
-		l.label(text="Helps setting PMX bone order")
+		l.operator('mmd_helper.load_bone_settings_from_csv')
 		return
 
 
@@ -492,25 +492,27 @@ class MH_PT_MineDetector(bpy.types.Panel):
 		# check MMD bone name duplication
 		col.label(text='MMD Bone Name Collision:', icon='BONE_DATA')
 
-		used_names = set()
-		duplicated = list()
+		first_users = {}
+		dup_bones = []
 
-		for pbone in arm.pose.bones:
+		for pbone in (pb for pb in arm.pose.bones if pb.mmd_bone.name_j) :
 			name_j = pbone.mmd_bone.name_j
-			if not name_j:
-				continue
 
-			if name_j in used_names:
-				duplicated.append(name_j)
+			if name_j in first_users.keys():
+				if first_users[name_j] not in dup_bones:
+					dup_bones.append(first_users[name_j])
+				dup_bones.append(pbone)
 			else:
-				used_names.add(name_j)
-			
+				first_users[name_j] = pbone
 		
-		if duplicated:
-			for name in duplicated:
-				for pbone in arm.pose.bones:
-					if pbone.mmd_bone.name_j == name:
-						col.prop(pbone.mmd_bone, 'name_j', text=pbone.name, icon='ERROR')
+		if dup_bones:
+			for pbone in dup_bones:
+				name_j = pbone.mmd_bone.name_j
+				col.prop(pbone.mmd_bone, 'name_j', text=pbone.name, icon='ERROR')
+
+			row = col.row(align=True)
+			row.alignment = 'RIGHT'			
+			row.label(text="Please fix these bone's name_j", icon='ERROR')
 		else:
 			col.label(text='None', icon='INFO')
 
@@ -564,7 +566,7 @@ _panels = [
 	MH_UL_NamingRules,
 	MH_PT_RuleBasedNamingTool,
 	MH_PT_AdditoinalPMXBones,
-	MH_PT_BoneSortOrderTool,
+	MH_PT_BoneSettigsTool,
 	MH_PT_MaterialSettingTool,
 	MH_PT_MineDetector,
 ]

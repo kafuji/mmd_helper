@@ -86,7 +86,32 @@ def ensure_fcurve( action:bpy.types.Action, data, attr:str ):
 	#fcurve: bpy.types.FCurve = action.fcurves.keyframe_insert()
 	return None
 
+##############################################################
+def ensure_visible_obj( obj: bpy.types.Object ):
+	if obj.visible_get():
+		return
 
+	obj.hide_viewport = False
+	obj.hide_set(False)
+
+	if obj.visible_get():
+		return
+
+	# still invisible. show 
+	def check_layer_recursive(layer_collection):
+		for lc in layer_collection.children:
+			if check_layer_recursive(lc):
+				lc.hide_viewport = lc.collection.hide_viewport = False
+				return True
+		
+		if obj in layer_collection.collection.objects.values():
+			layer_collection.exclude = False
+			return True
+		return False
+
+	check_layer_recursive(bpy.context.view_layer.layer_collection)
+
+	return
 
 
 import re
@@ -286,3 +311,92 @@ def create_morph_list():
 			del bpy.context.scene.kt_props["morph_is_invalid"]
 
 		return
+
+
+################################################################################
+def add_mmd_tex( mat:bpy.types.Material, node_name:str, filepath:str ) -> bpy.types.ShaderNodeTexImage or None:
+	if not mat or not filepath:
+		return None
+	
+	if not mat.node_tree:
+		mat.use_nodes = True
+
+	def get_tex_node(mat, node_name):
+		tex_node = getattr(mat.node_tree, "nodes", {}).get(node_name, None)
+		if isinstance(tex_node, bpy.types.ShaderNodeTexImage):
+			return tex_node
+
+	def get_img_node_by_filepath(filepath, default=None):
+		for img in bpy.data.images:
+			if img.filepath == filepath:
+				# print(f"Image found: {img.name}, {img.filepath}")
+				return img
+		# create new image
+		try:
+			# print(f"Creating new image: {filepath}")
+			img = bpy.data.images.new(filepath, 1, 1)
+			img.filepath = filepath
+			img.source = 'FILE'
+			img.reload()
+		except Exception as e:
+			# print(f'Error creating image: {e}')
+			return default
+		return img
+
+
+	def nt_get_freearea(tree:bpy.types.NodeTree):
+		mmd_shader = mat.node_tree.nodes.get("mmd_shader", None)
+		if mmd_shader:
+			return mmd_shader.location.x-300, mmd_shader.location.y-300
+
+		x, y = 0, 0
+		for node in [n for n in tree.nodes if not n.name.startswith("mmd_")]:
+			x = min(x, node.location.x)
+			y = max(y, node.location.y)
+		return x-1200, y+600
+
+	node_pos_offsets = {
+		'mmd_base_tex' : (0, 0),
+		'mmd_sphere_tex' : (0, -300),
+		'mmd_toon_tex' : (0, -600),
+	}
+
+	if node_name not in node_pos_offsets.keys():
+		return None
+
+	# --------------------------------
+	tex_node = get_tex_node(mat, node_name)
+	if tex_node: # already exists
+		tex_node.image = get_img_node_by_filepath(filepath, tex_node.image)
+	else: # create new
+		node_pos = nt_get_freearea(mat.node_tree)
+		tex_node:bpy.types.ShaderNodeTexImage = mat.node_tree.nodes.new('ShaderNodeTexImage')
+		tex_node.name = tex_node.label = node_name
+		tex_node.image = get_img_node_by_filepath(filepath)
+		tex_node.location.x = node_pos[0] + node_pos_offsets[node_name][0]
+		tex_node.location.y = node_pos[1] + node_pos_offsets[node_name][1]
+	
+	return tex_node
+
+
+################################################################################
+def ensure_mmd_bone_id(bone: bpy.types.PoseBone) -> int:
+	"""Ensure bone has mmd_bone.bone_id. If not, assign new id"""
+	if not bone:
+		return -1
+	mmd_bone = bone.mmd_bone
+	if mmd_bone.bone_id < 0:
+		max_id = -1
+		for bone in bone.id_data.pose.bones:
+			max_id = max(max_id, bone.mmd_bone.bone_id)
+		mmd_bone.bone_id = max_id + 1
+	return mmd_bone.bone_id
+
+################################################################################
+def get_bone_by_mmd_bone_id(armature: bpy.types.Object, bone_id: int) -> bpy.types.PoseBone:
+	"""Returns bone by mmd_bone.bone_id"""
+	for bone in armature.pose.bones:
+		if bone.mmd_bone.bone_id == bone_id:
+			return bone
+	return None
+

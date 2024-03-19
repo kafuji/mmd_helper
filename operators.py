@@ -1,10 +1,18 @@
 ################################################################################
 # Custom Operators
 ################################################################################
+import copy
 import bpy
 from bpy.props import *
+from bpy.types import Context
 from .properties import *
 import mathutils
+import math
+import os
+
+
+from bpy_extras.io_utils import ImportHelper, ExportHelper
+
 
 from . import mmd_bone_schema as schema
 
@@ -159,10 +167,204 @@ class MH_OT_RestoreBoneNames(bpy.types.Operator):
         return {"FINISHED"}
 
 
+################################################################################
+class MH_OT_LoadBoneSettingsFromCSV(bpy.types.Operator,ImportHelper):
+    bl_idname = "mmd_helper.load_bone_settings_from_csv"
+    bl_label = "Set mmd_bone from CSV" 
+    bl_description = "Configure mmd_bone properties from CSV data. Also creates mmd_bone_order_override object to sort bones in mmd_tools"
+    bl_options = {"REGISTER","UNDO"}
+
+    filename_ext = '.csv'
+    filter_glob: StringProperty(
+        default='*.csv',
+        options={'HIDDEN'}
+    )
+
+    update_mmd_bone: BoolProperty(
+        name='Update MMD Bone',
+        description='Set mmd_bone properties from CSV data',
+        default = False,
+    )
+
+    update_bone_order: BoolProperty(
+        name='Update MMD Bone Order',
+        description="Sort MMD Bones according to CSV bone order. It creates representative object [armature_name + '_bone_order'] to keep bone order for mmd_tools",
+        default=True,
+    )
+
+    @classmethod
+    def poll(cls, context:bpy.types.Context):
+        if context.mode != 'OBJECT':
+            return False
+        obj = context.active_object
+        if not obj.pose: # requires armature is active
+            return False
+        mmd_root = helpers.find_mmd_root(obj) # should have mmd_root
+        return mmd_root is not None
+
+    # Main function
+    def execute(self, context:bpy.types.Context):
+        # print("Loading CSV file...")
+        arm = context.active_object
+        mmd_root = helpers.find_mmd_root(arm)
+        bones = arm.pose.bones
+
+        # PmxBone,ボーン名,ボーン名(英),変形階層,物理後(0/1),位置_x,位置_y,位置_z,回転(0/1),移動(0/1),IK(0/1),表示(0/1),操作(0/1),  
+        # 親ボーン名,表示先(0:オフセット/1:ボーン),表示先ボーン名,表示先オフセット_x,表示先オフセット_y,表示先オフセット_z,
+        # ローカル付与(0/1),回転付与(0/1),移動付与(0/1),付与率,付与親名,軸制限(0/1),制限軸_x,制限軸_y,制限軸_z,
+        # ローカル軸(0/1),ローカルX軸_x,ローカルX軸_y,ローカルX軸_z,ローカルZ軸_x,ローカルZ軸_y,ローカルZ軸_z,
+        # 外部親(0/1),外部親Key,IKTarget名,IKLoop,IK単位角[deg]
+
+        # PmxIKLink,親ボーン名,Linkボーン名,角度制限(0/1),XL[deg],XH[deg],YL[deg],YH[deg],ZL[deg],ZH[deg]
+
+        def create_lookup_table_by_name_j(bones):
+            lookup = {}
+            for b in bones:
+                name_j = b.mmd_bone.name_j
+                if name_j:
+                    if name_j in lookup:
+                        self.report({'WARNING'}, f'Duplicated name_j: {name_j}, bone: {b.name} and {lookup[name_j].name}')
+                        continue
+                    lookup[name_j] = b
+            return lookup
+
+        name_j_lookup = create_lookup_table_by_name_j(bones)
+        csv_bones = []
+
+        try:
+            with open(self.filepath, encoding='utf-8') as fp:
+                next(fp) # skip header
+                for i, l in enumerate(fp):
+                    array = l.split(',')
+
+                    if array[0] == 'PmxBone':
+                        if len(array)<31:
+                            self.report({'WARNING'}, f'Missing data in line {i+1}. Skipping...')
+                            continue
+
+                        # retrieve data
+                        (   mode, name_j, name_e, 
+                            def_layer, after_phys, pos_x, pos_y, pos_z, can_rot, can_move, ik, visible, operable,
+                            parent_name, dest_type, dest_bone_name, dest_offset_x, dest_offset_y, dest_offset_z,
+                            has_local_axes, has_copyrot, has_copyloc, copy_rate, copy_parent_name, has_fixed_axis, fixed_axis_x, fixed_axis_y, fixed_axis_z,
+                            has_local_axes, local_x_x, local_x_y, local_x_z, local_z_x, local_z_y, local_z_z,
+                            has_external_parent, external_parent_key, ik_target_name, ik_loop, ik_unit_angle
+                        ) = array
+                    
+                    elif array[0] == 'PmxIKLink':
+                        if len(array)<10:
+                            self.report({'WARNING'}, f'Missing data in line {i+1}. Skipping...')
+                            continue
+
+                        # retrieve data
+                        (   mode, parent_name, link_bone_name, has_angle_limit, xl, xh, yl, yh, zl, zh
+                        ) = array
+                    else:
+                        if array[0].startswith(';'): # comment
+                            continue
+                        else:
+                            self.report({'WARNING'}, f'Unknown data in line {i+1}. Skipping...')
+                            continue
+
+
+                    name_j = name_j.strip('"') # uses only name_j as key
+
+                    # find bone by name_j
+                    bone = bones.get(name_j)
+                    if not bone: # try to find by name_j
+                        bone = name_j_lookup.get(name_j)
+                    
+                    if not bone:
+                        self.report({'WARNING'}, message=f'Bone {name_j} not found in armature')
+                        continue
+
+                    # use it later for bone order
+                    csv_bones.append(bone)
+
+                    if self.update_mmd_bone:
+                        helpers.ensure_mmd_bone_id(bone)
+                        m = bone.mmd_bone
+                        m.name_e = name_e.strip('"')
+
+                        strbool = lambda s: s!='0'
+                        def rad(deg):
+                            return math.radians(float(deg))
+
+                        if mode == 'PmxBone':
+                            m.transform_order = int(def_layer)
+                            m.is_controllable = strbool(operable)
+                            m.transform_after_dynamics = strbool(after_phys)
+
+                            m.enabled_fixed_axis = strbool(has_fixed_axis)
+                            m.fixed_axis = (float(fixed_axis_x), float(fixed_axis_y), float(fixed_axis_z))
+                            m.enabled_local_axes = strbool(has_local_axes)
+                            m.local_axis_x = (float(local_x_x), float(local_x_y), float(local_x_z))
+                            m.local_axis_z = (float(local_z_x), float(local_z_y), float(local_z_z))
+
+                            m.has_additional_rotation = strbool(has_copyrot)
+                            m.has_additional_location = strbool(has_copyloc)
+
+                            copy_parent_name = copy_parent_name.strip('"')
+                            tgt_bone = name_j_lookup.get(copy_parent_name)
+                            if copy_parent_name and not tgt_bone:
+                                self.report({'WARNING'}, f'Copy parent bone {copy_parent_name} not found in armature')
+
+                            m.additional_transform_bone = tgt_bone.name if tgt_bone else ''
+                            # m.additional_transform_bone_id = helpers.ensure_mmd_bone_id(tgt_bone) if tgt_bone else -1 # mmd tools automatically sets bone_id
+
+                            m.additional_transform_influence = float(copy_rate)
+                            m.ik_rotation_constraint = rad(ik_unit_angle)
+                        
+                        if mode == 'PmxIKLink':
+                            pass # mmd_tools uses actual Ik contstraints to handle IK links. We don't want to mess with it
+
+                # end for loop of lines
+            # end with open
+        except Exception as e:
+            self.report({'ERROR'}, f'Error reading CSV file: {e}')
+            if e == UnicodeDecodeError:
+                self.report({'ERROR'}, f'Check if the file is in UTF-8 encoding')
+            return {'CANCELLED'}
+
+        # update bone order
+        if self.update_bone_order:
+            # create representative object that contains all bones vertex groups. The order of vertex groups is used by mmd_tools to sort bones when exporting
+            # claude!
+            ob_name = arm.name + '_bone_order'
+            if ob_name in bpy.data.objects: # remove old object
+                bpy.data.objects.remove( bpy.data.objects[ob_name], do_unlink=True )
+
+            temp_mesh = bpy.data.meshes.new( ob_name )
+            temp_ob = bpy.data.objects.new( ob_name, temp_mesh )
+            colle = arm.users_collection[0]
+            colle.objects.link( temp_ob )
+            temp_ob.parent = arm
+
+            # Add armature modifier 'mmd_bone_order_override' to the mesh. mmd_tools uses this modifier to read vertex group order
+            mod = temp_ob.modifiers.new( name='mmd_bone_order_override', type='ARMATURE' )
+            mod.object = arm
+
+            # set vertex groups along with CSV bone order
+            for i, bone in enumerate(csv_bones):
+                temp_ob.vertex_groups.new( name=bone.name )
+            
+            # remove 'mmd_bone_order_override' from other objects within the model, to prevent mmd_tools from using wrong object to read bone order
+            target_objs = set(arm.children_recursive)
+            target_objs |= set([o for o in bpy.data.objects if o.find_armature() == arm]) # include armture bound objects
+
+            for obj in [o for o in arm.children_recursive if o.type=='MESH']:
+                if obj == temp_ob:
+                    continue
+
+                mod = obj.modifiers.get('mmd_bone_order_override')
+                if mod:
+                    mod.name = mod.name + '_old'
+
+        return {"FINISHED"}
 
 
 
-from bpy_extras.io_utils import ImportHelper
+
 ################################################################################
 class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
     bl_idname = "mmd_helper.load_material_from_csv"
@@ -179,28 +381,43 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
     )
 
     update_mmd_material: BoolProperty(
-        name='Update MMD Material',
-        description='Set mmd_material properties from CSV data',
-        default = False,
+        name="Update MMD Material",
+        description="Set mmd_material properties from CSV data",
+        default = True,
     )
 
     update_material_order: BoolProperty(
-        name='Update Material Order',
-        description='Sort Materials and Objects according to CSV material order',
-        default=True,
+        name="Update Material Order",
+        description="Sort Materials and Objects according to CSV material order. Warning: It renames objects by adding prefix such as '001_'",
+        default=False,
     )
 
     join_objects_before_sort: BoolProperty(
-        name='Join Objects Before Sort',
-        description='Join objects within the model before sorting materials to get perfect order',
+        name="Join Objects Before Sort",
+        description="Join objects within the model before sorting materials to get perfect order",
         default=False,
     )
 
     prevent_joining_objects_with_modifiers: BoolProperty(
-        name='Prevent Joining Objects with Modifiers',
-        description='Prevent joining objects with modifiers(except armature) to avoid data loss',
+        name="Prevent Joining Objects with Modifiers",
+        description="Prevent joining objects with modifiers(except armature) to avoid data loss",
         default=True,
     )
+
+    def draw(self, context):
+        l = self.layout
+        l.use_property_decorate
+        l.prop(self, 'update_mmd_material')
+
+        l.separator()
+
+        l.label(text="Material Sorter")
+        l.prop(self, 'update_material_order')
+        col = l.column(align=True)
+        col.enabled = self.update_material_order
+        col.prop(self, 'join_objects_before_sort')
+        col.prop(self, 'prevent_joining_objects_with_modifiers')
+
 
     @classmethod
     def poll(cls, context):
@@ -210,7 +427,7 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
 
     # Main function
     def execute(self, context):
-        print("Loading CSV file...")
+        # print("Loading CSV file...")
         obj = context.active_object
         mmd_root = helpers.find_mmd_root(obj)
         arm = helpers.find_armature_within_children(mmd_root)  
@@ -221,21 +438,24 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
         # filter objects within the model
         objs = helpers.get_objects_by_armature(arm, mmd_root.children_recursive)
         objs = [o for o in objs if hasattr(o.data, 'materials') and len(o.data.materials)] # filter objects with materials
-        print(f"Objects: {objs}")
+        # print(f"Objects: {objs}")
 
         mat_dic={}
+        mat_owner={} # mat:obj
         for obj in objs:
             for mat in obj.data.materials:
                 mat_name = mat.mmd_material.name_j if mat.mmd_material.name_j else mat.name
                 mat_dic[mat_name] = mat
+                mat_owner[mat] = obj
 
-        print(f"Materials: {mat_dic}")
+        # print(f"Materials: {mat_dic}")
 
         mat_list = []
 
+        self.report({'INFO'}, f'Loading materials from {self.filepath}')
+
         with open(self.filepath, encoding='utf-8') as fp:
             next(fp) # skip header
-            
             for l in fp:
                 array = l.split(',')
                 if len(array)<31:
@@ -253,11 +473,14 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
                     base_tex, sp_tex, sp_mode, toon_tex, memo 
                 ) = array
                 
+                def bl_path(path):
+                    return path if os.path.isabs(path) or path.startswith('//') or not path else f"//{path}"
+
                 name_j = name_j.strip('"')
                 name_e = name_e.strip('"')
-                base_tex = base_tex.strip('"')
-                sp_tex = sp_tex.strip('"')
-                toon_tex = toon_tex.strip('"')
+                base_tex = bl_path( base_tex.strip('"') )
+                sp_tex = bl_path( sp_tex.strip('"') )
+                toon_tex = bl_path( toon_tex.strip('"') )
                 memo = memo.strip().strip('"') # strip crlf then remove "
                 
                 mat = mat_dic.get(name_j)
@@ -270,33 +493,42 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
                 if self.update_mmd_material:
                     m = mat.mmd_material
                     m.name_e = name_e
-                    
+
+                    # update mmd_material properties. use dict access to avoid calling __setattr__ method (it will modify NodeTree)
+
+                    # set textures
+                    helpers.add_mmd_tex(mat, 'mmd_base_tex', base_tex)
+                    helpers.add_mmd_tex(mat, 'mmd_sphere_tex', sp_tex)
+
+                    m['is_shared_toon_texture'] = len(toon_tex)==10 and toon_tex.startswith('toon0') and toon_tex.endswith('.bmp')
+                    if m.is_shared_toon_texture:
+                        m['shared_toon_texture'] = int(toon_tex[4:6])
+                        m['toon_texture'] = ''
+                    else:
+                        m['toon_texture'] = toon_tex
+
+                    strbool = lambda s: s!='0'
                     m['ambient_color'] = (float(amb_r), float(amb_g), float(amb_b))
                     m['diffuse_color'] = (float(dif_r), float(dif_g), float(dif_b))
                     m['alpha'] = float(dif_a)
                     m['specular_color'] = (float(ref_r), float(ref_g), float(ref_b))
                     m['shininess'] = float(ref_str)
-                    m['is_double_sided'] = bool(doublesided)
-                    m['enabled_drop_shadow'] = bool(ground_shadow)
-                    m['enabled_self_shadow_map'] = bool(self_shadow_map)
-                    m['enabled_self_shadow'] = bool(self_shadow)
-                    m['enabled_toon_edge'] = bool(use_edge)
+                    m['is_double_sided'] = strbool(doublesided)
+                    m['enabled_drop_shadow'] = strbool(ground_shadow)
+                    m['enabled_self_shadow_map'] = strbool(self_shadow_map)
+                    m['enabled_self_shadow'] = strbool(self_shadow)
+                    m['enabled_toon_edge'] = strbool(use_edge)
                     m['edge_color'] = (float(edge_r), float(edge_g), float(edge_b), float(edge_a))
                     m['edge_weight'] = float(edge_size)
-                    m['sphere_texture_type'] = sp_mode
+                    m['sphere_texture_type'] = int(sp_mode) + 1
                     m.comment = memo
-                    self.report({'INFO'}, f'Material {mat.name} mmd_material configured from {self.filepath}')
-                
-                    if 0: # ignore texture settings, due from shader incompatibility 
-                        m.is_shared_toon_texture = len(toon_tex)==10 and toon_tex.startswith('toon0') and toon_tex.endswith('.bmp')
-                        
-                        if m.is_shared_toon_texture:
-                            m.shared_toon_texture = int(toon_tex[4:6])
-                            m.toon_texture = ''
-                        else:
-                            m.toon_texture = toon_tex
 
-        print(f"Materials from CSV: {mat_list}")
+        self.report({'INFO'}, f'Materials from CSV: {[m.name for m in mat_list]}')
+        not_configured = [m for m in {m for o in objs for m in o.data.materials} if m not in mat_list]
+        if not_configured:
+            self.report({'WARNING'}, f'Missing in CSV: {[m.name for m in not_configured]}')
+
+        # print(f"Materials from CSV: {mat_list}")
         # update material order
         if self.update_material_order:
             # uses mat_list to sort materials on mmd_tools internal collection
@@ -476,6 +708,7 @@ class MH_OT_Convert_PoseLib_To_BoneMorph(bpy.types.Operator):
 
     # Main function
     def execute(self, context):
+        # not implemented yet
         return {'FINISHED'}
 
 ################################################################################
@@ -491,10 +724,87 @@ class MH_OT_Export_PoseLib_To_CSV(bpy.types.Operator):
 
     # Main function
     def execute(self, context):
+        # not implemented yet
         return {'FINISHED'}
 
 
+################################################################################
+class MH_OT_Quick_Export_Objects(bpy.types.Operator, ExportHelper):
+    """Export selected objects to PMX file. Use it for objects which not require complex processing before exporting"""
+    bl_idname = "mmd_helper.quick_export_objects"
+    bl_label = "Quick Export PMX"
+    bl_options = {"REGISTER","UNDO"}
 
+    filename_ext = '.pmx'
+    filter_glob: StringProperty(
+        default='*.pmx',
+        options={'HIDDEN'}
+    )
+
+    hide_outline_mods: BoolProperty(
+        name="Hide Outline Modifiers",
+        description="Temporarily hide outline modifiers while exporting (Outline modifiers: Solifiy with use_flip_normals)",
+        default=True
+    )
+
+    mod_show_flags = {}
+    obj_hide_flags = {}
+
+    @classmethod
+    def poll(cls, context:bpy.types.Context):
+        obj = context.object
+        # find mmd_root
+        mmd_root = helpers.find_mmd_root(obj)
+        if not mmd_root:
+            return False
+        
+        return obj and obj.type == 'MESH'
+
+
+    def invoke(self, context, event):
+        objs = helpers.get_target_objects(context.selected_objects, type_filter='MESH')
+
+        # print(f"Exporting objects: {[o.name for o in objs]}")
+
+        # add mmd_root and armature to objs
+        mmd_root = helpers.find_mmd_root(objs[0])
+        arm = helpers.find_armature_within_children(mmd_root)
+        objs += [mmd_root, arm]
+
+        # make armature is active
+        arm.select_set(True)
+
+        # make other objects invisible (because we use visible_meshes_only option)
+        self.obj_hide_flags = {}
+        for o in [o for o in context.visible_objects if o not in objs]:
+            self.obj_hide_flags[o] = o.hide_viewport
+            o.hide_viewport = True
+
+        # temporarily hide outline modifiers
+        self.mod_show_flags = {}
+        for o in objs:
+            for mod in [m for m in o.modifiers if m.type == 'SOLIDIFY' and m.use_flip_normals]:
+                self.mod_show_flags[mod] = mod.show_viewport
+                mod.show_viewport = False
+
+        return super().invoke(context, event)
+
+
+    def execute(self, context:bpy.types.Context):
+        # call mmd_tools.iexport_pmx
+        bpy.ops.mmd_tools.export_pmx('EXEC_DEFAULT', filepath=self.filepath, copy_textures=False, visible_meshes_only=True)
+
+        # restore visibility of modifiers
+        mod:bpy.types.Modifier
+        for mod, flag in self.mod_show_flags.items():
+            mod.show_viewport = flag
+        
+        # restore visibility of other objects
+        o: bpy.types.Object
+        for o, flag in self.obj_hide_flags.items():
+            o.hide_viewport = flag
+
+        return {'FINISHED'}
 
 
 # register & unregister
