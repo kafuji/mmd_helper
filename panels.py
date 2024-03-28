@@ -429,6 +429,8 @@ class MH_PT_BoneSettigsTool(bpy.types.Panel):
 	def draw(self,context):
 		l = self.layout
 		l.operator('mmd_helper.load_bone_settings_from_csv')
+		l.separator()
+		l.operator('mmd_helper.send_bones_to_clipboard', icon='COPYDOWN')
 		return
 
 

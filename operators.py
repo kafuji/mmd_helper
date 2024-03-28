@@ -197,7 +197,7 @@ class MH_OT_LoadBoneSettingsFromCSV(bpy.types.Operator,ImportHelper):
         if context.mode != 'OBJECT':
             return False
         obj = context.active_object
-        if not obj.pose: # requires armature is active
+        if not obj or not obj.pose: # requires armature is active
             return False
         mmd_root = helpers.find_mmd_root(obj) # should have mmd_root
         return mmd_root is not None
@@ -243,12 +243,12 @@ class MH_OT_LoadBoneSettingsFromCSV(bpy.types.Operator,ImportHelper):
                             continue
 
                         # retrieve data
-                        (   mode, name_j, name_e, 
-                            def_layer, after_phys, pos_x, pos_y, pos_z, can_rot, can_move, ik, visible, operable,
-                            parent_name, dest_type, dest_bone_name, dest_offset_x, dest_offset_y, dest_offset_z,
-                            has_local_axes, has_copyrot, has_copyloc, copy_rate, copy_parent_name, has_fixed_axis, fixed_axis_x, fixed_axis_y, fixed_axis_z,
+                        (   header, name_j, name_e, 
+                            def_layer, after_phys, pos_x, pos_y, pos_z, can_rot, can_move, has_ik, is_visible, is_operable,
+                            parent_name, dest_type, dest_name, dest_offset_x, dest_offset_y, dest_offset_z,
+                            is_loal_add, has_addrot, has_addloc, add_rate, add_src_name, has_fixed_axis, fixed_axis_x, fixed_axis_y, fixed_axis_z,
                             has_local_axes, local_x_x, local_x_y, local_x_z, local_z_x, local_z_y, local_z_z,
-                            has_external_parent, external_parent_key, ik_target_name, ik_loop, ik_unit_angle
+                            has_ext_parent, ext_parent_key, ik_target_name, ik_loop, ik_unit_angle
                         ) = array
                     
                     elif array[0] == 'PmxIKLink':
@@ -257,7 +257,7 @@ class MH_OT_LoadBoneSettingsFromCSV(bpy.types.Operator,ImportHelper):
                             continue
 
                         # retrieve data
-                        (   mode, parent_name, link_bone_name, has_angle_limit, xl, xh, yl, yh, zl, zh
+                        (   header, parent_name, link_bone_name, has_angle_limit, xl, xh, yl, yh, zl, zh
                         ) = array
                     else:
                         if array[0].startswith(';'): # comment
@@ -290,9 +290,9 @@ class MH_OT_LoadBoneSettingsFromCSV(bpy.types.Operator,ImportHelper):
                         def rad(deg):
                             return math.radians(float(deg))
 
-                        if mode == 'PmxBone':
+                        if header == 'PmxBone':
                             m.transform_order = int(def_layer)
-                            m.is_controllable = strbool(operable)
+                            m.is_controllable = strbool(is_operable)
                             m.transform_after_dynamics = strbool(after_phys)
 
                             m.enabled_fixed_axis = strbool(has_fixed_axis)
@@ -301,21 +301,21 @@ class MH_OT_LoadBoneSettingsFromCSV(bpy.types.Operator,ImportHelper):
                             m.local_axis_x = (float(local_x_x), float(local_x_y), float(local_x_z))
                             m.local_axis_z = (float(local_z_x), float(local_z_y), float(local_z_z))
 
-                            m.has_additional_rotation = strbool(has_copyrot)
-                            m.has_additional_location = strbool(has_copyloc)
+                            m.has_additional_rotation = strbool(has_addrot)
+                            m.has_additional_location = strbool(has_addloc)
 
-                            copy_parent_name = copy_parent_name.strip('"')
-                            tgt_bone = name_j_lookup.get(copy_parent_name)
-                            if copy_parent_name and not tgt_bone:
-                                self.report({'WARNING'}, f'Copy parent bone {copy_parent_name} not found in armature')
+                            add_src_name = add_src_name.strip('"')
+                            tgt_bone = name_j_lookup.get(add_src_name)
+                            if add_src_name and not tgt_bone:
+                                self.report({'WARNING'}, f'Copy parent bone {add_src_name} not found in armature')
 
                             m.additional_transform_bone = tgt_bone.name if tgt_bone else ''
                             # m.additional_transform_bone_id = helpers.ensure_mmd_bone_id(tgt_bone) if tgt_bone else -1 # mmd tools automatically sets bone_id
 
-                            m.additional_transform_influence = float(copy_rate)
+                            m.additional_transform_influence = float(add_rate)
                             m.ik_rotation_constraint = rad(ik_unit_angle)
                         
-                        if mode == 'PmxIKLink':
+                        if header == 'PmxIKLink':
                             pass # mmd_tools uses actual Ik contstraints to handle IK links. We don't want to mess with it
 
                 # end for loop of lines
@@ -362,7 +362,79 @@ class MH_OT_LoadBoneSettingsFromCSV(bpy.types.Operator,ImportHelper):
 
         return {"FINISHED"}
 
+################################################################################
+class MH_OT_SendBonesToClipboard(bpy.types.Operator):
+    bl_idname = "mmd_helper.send_bones_to_clipboard"
+    bl_label = "Send Bones to Clipboard"
+    bl_description = "Send selected bones data to clipboard as CSV format. If no bones selected, all bones will be sent"
+    bl_options = {"REGISTER","UNDO"}
 
+    scale: FloatProperty(
+        name='Scale',
+        description='Scale factor for converting bone positions to MMD space',
+        default=12.5,
+        min=0.01, max=100.0, subtype='FACTOR',
+    )
+
+    # 'Position', 'Setting', 'Parent', 'Display', 'Add_Deform', 'Fixed_Axis', 'Local_Axis', 'IK'
+    categories: EnumProperty(
+        name='Categories',
+        description='Select categories to include (shift+click to select multiple)',
+        items=[ # use tolower() as identifier
+            ('POSITION', 'Position', 'Position', 1),
+            ('SETTING', 'Setting', 'Setting', 2),
+            ('PARENT', 'Parent', 'Parent', 4),
+            ('DISPLAY', 'Display', 'Display', 8),
+            ('ADD_DEFORM', 'Add Deform', 'Add_Deform', 16),
+            ('FIXED_AXIS', 'Fixed Axis', 'Fixed_Axis', 32),
+            ('LOCAL_AXIS', 'Local Axis', 'Local_Axis', 64),
+            ('IK', 'IK', 'IK', 128),
+        ],
+        options={'ENUM_FLAG'},
+        default={'POSITION','DISPLAY'}
+    )
+
+
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode in ('OBJECT', 'POSE')
+
+    # Main function
+    def execute(self, context):
+        arm = context.object
+        bones = context.selected_pose_bones if context.selected_pose_bones else arm.pose.bones
+        mmd_root = helpers.find_mmd_root(arm)
+
+        if not mmd_root:
+            self.report({'ERROR'}, 'mmd_root not found in the model')
+            return {'CANCELLED'}
+        
+        # create CSV data
+        lines = []
+        for bone in bones:
+            pmxbone = helpers.PmxBoneData(scale=self.scale)
+            cats = [c.lower() for c in self.categories]
+            pmxbone.from_bone(bone, cats)
+            lines.append( (bone, str(pmxbone) + '\n'))
+
+        # use bone_sort_order to sort bones
+        rep_obj = None
+        for obj in arm.children:
+            if obj.type == 'MESH' and obj.modifiers.get('mmd_bone_order_override'):
+                rep_obj = obj
+                break
+        
+        # if rep_obj:
+        #     vgs = rep_obj.vertex_groups
+        #     bone_order = [vg.name for vg in vgs]
+        #     # sort lines by bone_order
+        #     lines.sort(key=lambda x: bone_order.index(x[0].name))
+
+        # copy to clipboard
+        bpy.context.window_manager.clipboard = ''.join([l[1] for l in lines])
+
+        return {"FINISHED"}
 
 
 ################################################################################
@@ -460,6 +532,7 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
                 array = l.split(',')
                 if len(array)<31:
                     self.report({'ERROR'}, f'Incompatible CSV file: It seems not generated by PMX Editor')
+                    self.report({'ERROR'}, f'Line: {l}')
                     return {'CANCELLED'}
 
                 # retrieve data

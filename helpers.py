@@ -4,6 +4,8 @@
 import bpy
 from contextlib import contextmanager
 
+from mathutils import Vector
+
 ################################################################################
 def dump(obj):
 	for attr in dir(obj):
@@ -400,3 +402,220 @@ def get_bone_by_mmd_bone_id(armature: bpy.types.Object, bone_id: int) -> bpy.typ
 			return bone
 	return None
 
+
+
+################################################################################
+
+# read/write callbacks
+readbool = lambda s: s != '0'
+def writebool(b: bool) -> str:
+	if b is None:
+		return ''
+	return '1' if b else '0'
+
+readfloat = lambda s: float(s)
+writefloat = lambda v: str(v) if v is not None else ''
+
+readstr_naked = lambda s: s
+writestr_naked = lambda s: s if s is not None else ''
+
+readstr = lambda s: s.strip('"')
+writestr = lambda s: f'"{s}"' if s is not None else ''
+
+readint = lambda s: int(s)
+writeint = lambda i: str(i) if i is not None else ''
+
+def conv_loc_blender_to_mmd( loc: Vector, bone:bpy.types.PoseBone, scale: float=12.5 ) -> Vector:
+	arm:bpy.types.Object = bone.id_data
+	# to World space, XYZ to XZY
+	loc = arm.matrix_world @ loc
+	loc = loc * scale
+	return loc.x, loc.z, loc.y
+
+def get_name_j(bone:bpy.types.PoseBone) -> str:
+	mmd_bone = bone.mmd_bone
+	if mmd_bone.name_j:
+		return mmd_bone.name_j
+	return bone.name
+
+
+class PmxBoneData: # reader/writer
+
+	# PmxBone,ボーン名,ボーン名(英),変形階層,物理後(0/1),位置_x,位置_y,位置_z,回転(0/1),移動(0/1),IK(0/1),表示(0/1),操作(0/1),  
+	# 親ボーン名,表示先(0:オフセット/1:ボーン),表示先ボーン名,表示先オフセット_x,表示先オフセット_y,表示先オフセット_z,
+	# ローカル付与(0/1),回転付与(0/1),移動付与(0/1),付与率,付与親名,軸制限(0/1),制限軸_x,制限軸_y,制限軸_z,
+	# ローカル軸(0/1),ローカルX軸_x,ローカルX軸_y,ローカルX軸_z,ローカルZ軸_x,ローカルZ軸_y,ローカルZ軸_z,
+	# 外部親(0/1),外部親Key,IKTarget名,IKLoop,IK単位角[deg]
+
+	col_data = [ # list of (attr_name, read, write) 
+		( 'header', readstr_naked, writestr_naked ) ,
+
+		# Bone Name ,ボーン名)
+		( 'name_j', readstr, writestr ) ,
+		( 'name_e', readstr, writestr ) ,
+
+		# Deform Hierarchy ,変形階層)
+		( 'def_layer', readint, writeint ) ,
+		( 'after_phys', readbool, writebool ) ,
+
+		# Position ,位置)
+		( 'pos_x', readfloat, writefloat ) ,
+		( 'pos_y', readfloat, writefloat ) ,
+		( 'pos_z', readfloat, writefloat ) ,
+
+		# Setting
+		( 'can_rot', readbool, writebool ) ,
+		( 'can_move', readbool, writebool ) ,
+		( 'has_ik', readbool, writebool ) ,
+		( 'is_visible', readbool, writebool ) ,
+		( 'is_operatable', readbool, writebool ) ,
+
+		# Parent
+		( 'parent_name', readstr, writestr ) ,
+
+		# Display Destination ,表示先)
+		( 'dest_type', readint, writeint ) ,
+		( 'dest_name', readstr, writestr ) ,
+		( 'dest_offset_x', readfloat, writefloat ) ,
+		( 'dest_offset_y', readfloat, writefloat ) ,
+		( 'dest_offset_z', readfloat, writefloat ) ,
+
+		# Add Deform ,付与)
+		( 'is_local_add', readbool, writebool ) ,
+		( 'has_addrot', readbool, writebool ) ,
+		( 'has_addloc', readbool, writebool ) ,
+		( 'add_rate', readfloat, writefloat ) ,
+		( 'add_parent_name', readstr, writestr ) ,
+
+		# Fixed Axis ,軸制限)
+		( 'has_fixed_axis', readbool, writebool ) ,
+		( 'fixed_axis_x', readfloat, writefloat ) ,
+		( 'fixed_axis_y', readfloat, writefloat ) ,
+		( 'fixed_axis_z', readfloat, writefloat ) ,
+
+		# Local Axis ,ローカル軸)
+		( 'has_local_axis', readbool, writebool ) ,
+		( 'local_x_x', readfloat, writefloat ) ,
+		( 'local_x_y', readfloat, writefloat ) ,
+		( 'local_x_z', readfloat, writefloat ) ,
+		( 'local_z_x', readfloat, writefloat ) ,
+		( 'local_z_y', readfloat, writefloat ) ,
+		( 'local_z_z', readfloat, writefloat ) ,
+
+		# External Parent ,外部親)
+		( 'has_ext_parent', readbool, writebool ) ,
+		( 'ext_parent_key', readint, writeint ) ,
+
+		# IK
+		( 'ik_target_name', readstr, writestr ) ,
+		( 'ik_loop', readint, writeint ) ,
+		( 'ik_unit_angle', readfloat, writefloat ) ,
+	]
+
+	def __init__(self, scale:float=12.5): # Init using given line (from CSV or clipboard)
+		self.scale = scale # scale factor for location
+		self.header = 'PmxBone'
+
+		# create atrributes
+		for col_data in self.col_data:
+			attr_name, _, _ = col_data
+			setattr(self, attr_name, None)
+
+	def __str__(self):
+		# convert to string
+		values = ['PmxBone']
+		for col_data in self.col_data[1:]:
+			attr_name, _, write = col_data
+			value = write(getattr(self, attr_name, ''))
+			values.append(value)
+		return ','.join(values)
+	
+	def __repr__(self):
+		return self.__str__()
+
+
+	def __parse_line(self, line:str):
+		# split line
+		values = line.split(',')
+		if len(values) < 40:
+			print(f"Invalid PmxBone line: {line}")
+			return
+
+		# set attributes
+		for col_data, value in zip(self.col_data, values):
+			attr_name, read, _ = col_data
+			setattr(self, attr_name, read(value))
+		return
+
+
+	def from_line(self, line:str):
+		self.__parse_line(line)
+		return self
+
+	def from_bone( self, bone:bpy.types.PoseBone, categories=[] ): # write only wanted categories
+		b = bone
+		arm:bpy.types.Object = b.id_data
+		mmd = bone.mmd_bone
+
+#		if 'name' in categories: # always!
+		self.bone = bone
+		self.name_j = get_name_j(bone)
+		self.name_e = mmd.name_e if mmd.name_e else None
+
+		if 'position' in categories:
+			self.pos_x, self.pos_y, self.pos_z = conv_loc_blender_to_mmd(bone.bone.head_local, bone, self.scale)
+
+		if 'setting' in categories:
+			self.can_rot = not all(b.lock_rotation[:])
+			self.can_move = not all(b.lock_location[:])
+			# self.has_ik = ... # need to find any bone uses this bone as ik target
+			self.is_visible = not b.bone.hide
+			self.is_operatable = mmd.is_controllable
+
+		if 'parent' in categories:
+			parent = bone.parent
+			if not parent:
+				self.parent_name = ''
+			else:
+				self.parent_name = get_name_j(parent)
+
+		if 'display' in categories:
+			if any(c.bone.use_connect for c in bone.children):
+				for child in bone.children:
+					if child.bone.use_connect:
+						self.dest_type = 1
+						self.dest_name = get_name_j(child)
+						break
+			else:
+				self.dest_type = 0
+				self.dest_name = None
+				offset = bone.bone.tail_local - bone.bone.head_local
+				offset = conv_loc_blender_to_mmd(offset, bone, self.scale)
+				self.dest_offset_x, self.dest_offset_y, self.dest_offset_z = offset
+
+		if 'add_deform' in categories:
+			con = next((c for c in bone.constraints if c.type in {'COPY_ROTATION', 'COPY_LOCATION'}), None)
+			if con:
+				tgt_bone = arm.pose.bones.get(con.subtarget)
+				self.is_local_add = True
+				self.has_addrot = con.type == 'COPY_ROTATION'
+				self.has_addloc = con.type == 'COPY_LOCATION'
+				self.add_rate = con.influence
+				if not tgt_bone:
+					self.add_parent_name = ''
+				self.add_parent_name = get_name_j(tgt_bone)
+
+		if 'fixed_axis' in categories:
+			self.has_fixed_axis = mmd.enabled_fixed_axis
+			self.fixed_axis_x, self.fixed_axis_y, self.fixed_axis_z = mmd.fixed_axis
+		if 'local_axis' in categories:
+			self.has_local_axis = mmd.enabled_local_axes
+			self.local_x_x, self.local_x_y, self.local_x_z = mmd.local_axis_x
+			self.local_z_x, self.local_z_y, self.local_z_z = mmd.local_axis_z
+		if 'ext_parent' in categories: # no such property in blender mmd_tools
+			print(f"Warning: ext_parent is not supported in blender mmd_tools")
+		if 'ik' in categories: # implement later
+			print(f"Warning: Not implemented yet: IK")
+			pass
+
+		return self
