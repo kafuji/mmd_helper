@@ -607,10 +607,18 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
             # uses mat_list to sort materials on mmd_tools internal collection
             # mmd_tools uses object.material order and object order in bpy.data by using prefix '000' to '999'
 
+            def check_safe_to_join(obj):
+                if obj.modifiers:
+                    for mod in obj.modifiers:
+                        if mod.type != 'ARMATURE':
+                            return False
+                return True
+
             # join objects
             if self.join_objects_before_sort:
-                objs_to_join = [o for o in objs if not o.modifiers] if self.prevent_joining_objects_with_modifiers else objs
-                objs_not_to_join = [o for o in objs if o not in objs_to_join]
+                visible_objs = [o for o in objs if o.visible_get()]
+                objs_to_join = [o for o in visible_objs if check_safe_to_join(o)] if self.prevent_joining_objects_with_modifiers else visible_objs
+                objs_not_to_join = [o for o in visible_objs if o not in objs_to_join]
 
                 if len(objs_to_join) > 1:
                     # deselect all
