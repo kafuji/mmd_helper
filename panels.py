@@ -1,13 +1,10 @@
 ################################################################################
 # Custom Panels
 ################################################################################
-from unicodedata import name
 import bpy
 
 from . import mmd_bone_schema as schema
 from . import helpers
-
-import addon_utils
 
 
 # Root Panel
@@ -17,9 +14,14 @@ class MH_PT_PMX_ExportHelper(bpy.types.Panel):
 	bl_region_type = "UI"
 	bl_category = "MMD"
 
+	module_names = ('mmd_tools', 'bl_ext.blender_org.mmd_tools')
+
 	@classmethod
 	def poll(cls, context):
-		return addon_utils.check('mmd_tools')[0] # active only with mmd_tools
+		for name in cls.module_names:
+			if name in bpy.context.preferences.addons:
+				return True
+		return False
 
 	def draw(self,context):
 		return
