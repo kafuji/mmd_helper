@@ -371,6 +371,7 @@ class MH_PT_RuleBasedNamingTool(bpy.types.Panel):
 	bl_region_type = "UI"
 	bl_category = "MMD"
 	bl_parent_id = "MH_PT_BoneNamingHelper"
+	bl_options = {"DEFAULT_CLOSED"}
 
 	def draw(self,context):
 		layout = self.layout
@@ -431,7 +432,6 @@ class MH_PT_BoneSettigsTool(bpy.types.Panel):
 	def draw(self,context):
 		l = self.layout
 		l.operator('mmd_helper.load_bone_settings_from_csv')
-		l.separator()
 		l.operator('mmd_helper.send_bones_to_clipboard', icon='COPYDOWN')
 		return
 

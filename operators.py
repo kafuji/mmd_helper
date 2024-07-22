@@ -380,15 +380,15 @@ class MH_OT_SendBonesToClipboard(bpy.types.Operator):
     categories: EnumProperty(
         name='Categories',
         description='Select categories to include (shift+click to select multiple)',
-        items=[ # use tolower() as identifier
-            ('POSITION', 'Position', 'Position', 1),
-            ('SETTING', 'Setting', 'Setting', 2),
-            ('PARENT', 'Parent', 'Parent', 4),
-            ('DISPLAY', 'Display', 'Display', 8),
-            ('ADD_DEFORM', 'Add Deform', 'Add_Deform', 16),
-            ('FIXED_AXIS', 'Fixed Axis', 'Fixed_Axis', 32),
-            ('LOCAL_AXIS', 'Local Axis', 'Local_Axis', 64),
-            ('IK', 'IK', 'IK', 128),
+        items=[
+            ('POSITION', 'Position', "Bone Position", 1),
+            ('SETTING', 'Basic Settings', "Flags for Can Rotation, Can Move, Is Visible, Is Controllable", 2),
+            ('PARENT', 'Parent Bone', "Parent bone", 4),
+            ('DISPLAY', 'Display', "Bone tail display type, to bone name, or offset values", 8),
+            ('ADD_DEFORM', 'Add Deform', "Add Rotation and Add Location setitngs", 16),
+            ('FIXED_AXIS', 'Fixed Axis', "Fixed Axis settings", 32),
+            ('LOCAL_AXIS', 'Local Axis', "Local Axis settings", 64),
+            ('IK', 'IK', "IK settings", 128),
         ],
         options={'ENUM_FLAG'},
         default={'POSITION','DISPLAY'}
@@ -414,8 +414,8 @@ class MH_OT_SendBonesToClipboard(bpy.types.Operator):
         lines = []
         for bone in bones:
             pmxbone = helpers.PmxBoneData(scale=self.scale)
-            cats = [c.lower() for c in self.categories]
-            pmxbone.from_bone(bone, cats)
+            categories = [c for c in self.categories]
+            pmxbone.from_bone(bone, categories)
             lines.append( (bone, str(pmxbone) + '\n'))
 
         # use bone_sort_order to sort bones

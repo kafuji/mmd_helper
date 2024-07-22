@@ -4,7 +4,9 @@
 import bpy
 from contextlib import contextmanager
 
-from mathutils import Vector
+from mathutils import Vector, Euler, Quaternion, Matrix
+
+import math
 
 ################################################################################
 def dump(obj):
@@ -447,6 +449,8 @@ class PmxBoneData: # reader/writer
 	# ローカル軸(0/1),ローカルX軸_x,ローカルX軸_y,ローカルX軸_z,ローカルZ軸_x,ローカルZ軸_y,ローカルZ軸_z,
 	# 外部親(0/1),外部親Key,IKTarget名,IKLoop,IK単位角[deg]
 
+	# PmxIKLink,コントロールボーン名,制御対象ボーン名,角度制限On/Off,min_x, max_x, min_y, max_y, min_z, max_z
+
 	col_data = [ # list of (attr_name, read, write) 
 		( 'header', readstr_naked, writestr_naked ) ,
 
@@ -528,7 +532,15 @@ class PmxBoneData: # reader/writer
 			attr_name, _, write = col_data
 			value = write(getattr(self, attr_name, ''))
 			values.append(value)
-		return ','.join(values)
+		
+		ret = ','.join(values)
+
+		# PMX IK Links
+		if hasattr(self, 'ik_links') and len(self.ik_links):
+			for ik_link in self.ik_links:
+				ret += '\n' + ik_link
+
+		return ret
 	
 	def __repr__(self):
 		return self.__str__()
@@ -547,6 +559,8 @@ class PmxBoneData: # reader/writer
 			setattr(self, attr_name, read(value))
 		return
 
+	def to_str(self):
+		return str(self)
 
 	def from_line(self, line:str):
 		self.__parse_line(line)
@@ -562,24 +576,24 @@ class PmxBoneData: # reader/writer
 		self.name_j = get_name_j(bone)
 		self.name_e = mmd.name_e if mmd.name_e else None
 
-		if 'position' in categories:
+		if 'POSITION' in categories:
 			self.pos_x, self.pos_y, self.pos_z = conv_loc_blender_to_mmd(bone.bone.head_local, bone, self.scale)
 
-		if 'setting' in categories:
+		if 'SETTING' in categories:
 			self.can_rot = not all(b.lock_rotation[:])
 			self.can_move = not all(b.lock_location[:])
 			# self.has_ik = ... # need to find any bone uses this bone as ik target
 			self.is_visible = not b.bone.hide
 			self.is_operatable = mmd.is_controllable
 
-		if 'parent' in categories:
+		if 'PARENT' in categories:
 			parent = bone.parent
 			if not parent:
 				self.parent_name = ''
 			else:
 				self.parent_name = get_name_j(parent)
 
-		if 'display' in categories:
+		if 'DISPLAY' in categories:
 			if any(c.bone.use_connect for c in bone.children):
 				for child in bone.children:
 					if child.bone.use_connect:
@@ -593,7 +607,7 @@ class PmxBoneData: # reader/writer
 				offset = conv_loc_blender_to_mmd(offset, bone, self.scale)
 				self.dest_offset_x, self.dest_offset_y, self.dest_offset_z = offset
 
-		if 'add_deform' in categories:
+		if 'ADD_DEFORM' in categories:
 			con = next((c for c in bone.constraints if c.type in {'COPY_ROTATION', 'COPY_LOCATION'}), None)
 			if con:
 				tgt_bone = arm.pose.bones.get(con.subtarget)
@@ -605,17 +619,77 @@ class PmxBoneData: # reader/writer
 					self.add_parent_name = ''
 				self.add_parent_name = get_name_j(tgt_bone)
 
-		if 'fixed_axis' in categories:
+		if 'FIXED_AXIS' in categories:
 			self.has_fixed_axis = mmd.enabled_fixed_axis
 			self.fixed_axis_x, self.fixed_axis_y, self.fixed_axis_z = mmd.fixed_axis
-		if 'local_axis' in categories:
+		if 'LOCAL_AXIS' in categories:
 			self.has_local_axis = mmd.enabled_local_axes
 			self.local_x_x, self.local_x_y, self.local_x_z = mmd.local_axis_x
 			self.local_z_x, self.local_z_y, self.local_z_z = mmd.local_axis_z
-		if 'ext_parent' in categories: # no such property in blender mmd_tools
-			print(f"Warning: ext_parent is not supported in blender mmd_tools")
-		if 'ik' in categories: # implement later
-			print(f"Warning: Not implemented yet: IK")
-			pass
+		if 'EXT_PARENT' in categories: # no such property in blender mmd_tools
+			print(f"Warning: EXT_PARENT is not supported in blender mmd_tools")
+		if 'IK' in categories: # implement later
+			tgt = get_ik_target(bone)
+			if tgt:
+				# Set PmxBone IK data
+				self.ik_target_name = get_name_j(tgt)
+				con:bpy.types.KinematicConstraint = next((c for c in tgt.constraints if c.type == 'IK'), None)
+				self.ik_loop = con.iterations
+				self.ik_unit_angle = 57.29578 # default value in PMX Editor, we can't know it in blender
+
+				# Create PmxIKLink lines
+				self.ik_links = []
+				tgts = get_ik_target_chain(tgt)
+				print(f"Additional IK targets: {[t.name for t in tgts]}")
+				for t in tgts:
+					t:bpy.types.PoseBone
+					ik_link = "PmxIKLink,"
+					ik_link += f'"{get_name_j(bone)}","{get_name_j(t)}",'
+
+					con_limit = t.constraints.get("mmd_ik_limit_override")
+					if con_limit and type(con_limit) == bpy.types.LimitRotationConstraint:
+						ik_link += "1," # angle limit enabled
+						min = Vector( (con_limit.min_x, con_limit.min_y, con_limit.min_z) )
+						max = Vector( (con_limit.max_x, con_limit.max_y, con_limit.max_z) )
+
+						# to degrees
+						min = Vector([math.degrees(v) for v in min])
+						max = Vector([math.degrees(v) for v in max])
+
+						ik_link += f"{min.z},{max.z},{min.y},{max.y},{min.x},{max.x}"
+
+					else:
+						ik_link += "0,0,0,0,0,0,0"
+
+					self.ik_links.append(ik_link)
 
 		return self
+
+def get_ik_target(bone:bpy.types.PoseBone) -> bpy.types.PoseBone:
+	# find IK constraint from entire armature
+	arm:bpy.types.Object = bone.id_data
+	for pbone in arm.pose.bones:
+		for con in [c for c in pbone.constraints if c.type == 'IK']:
+			con: bpy.types.KinematicConstraint
+			if con.target is arm and con.subtarget == bone.name:
+				print(f"This is IK controller: {bone.name}")
+				return pbone
+
+def get_ik_target_chain(bone:bpy.types.PoseBone) -> list:
+	"""
+		bone: the first target bone (which has IK constraint)
+a		returns: list of additional target bones
+	"""
+
+	ret = [bone]
+	con:bpy.types.KinematicConstraint = next((c for c in bone.constraints if c.type == 'IK'), None)
+	if con.chain_count <= 0: # doesn't support this
+		return ret
+
+	for i in range(con.chain_count-1):
+		bone = bone.parent
+		if not bone:
+			break
+		ret.append(bone)
+	
+	return ret
