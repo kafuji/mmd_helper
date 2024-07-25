@@ -1,7 +1,7 @@
 bl_info = {
     "name" : "PMX setup helper for mmd_tools",
     "author" : "Kafuji",
-    "version" : (0,2,1),
+    "version" : (0,3,0),
     "blender" : (3,0,0),
     "location" : "View3D > Side Bar > MMD",
     "description" : "PMX setup helper utilities for mmd_tools",

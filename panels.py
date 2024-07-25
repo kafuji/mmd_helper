@@ -1,6 +1,7 @@
 ################################################################################
 # Custom Panels
 ################################################################################
+from math import e
 import bpy
 
 from . import mmd_bone_schema as schema
@@ -452,6 +453,109 @@ class MH_PT_MaterialSettingTool(bpy.types.Panel):
 
 
 
+# Operator: Click to show owner object
+class MH_OT_ShowOwnerObject(bpy.types.Operator):
+	bl_idname = "mmd_helper.show_owner_object"
+	bl_label = "Show Owner Object"
+	bl_description = "Show the object that owns this material"
+	bl_options = {"UNDO"}
+
+	mat_name: bpy.props.StringProperty()
+
+	# Main function
+	def execute(self, context):
+		mat = bpy.data.materials.get(self.mat_name)
+		if not mat:
+			return {"CANCELLED"}
+
+		for obj in [o for o in context.scene.objects if hasattr(o.data, 'materials')]:
+			if mat.name in obj.data.materials:
+				# unselect all
+				for o in context.selected_objects:
+					o.select_set(False)
+
+				obj.select_set(True)
+				context.view_layer.objects.active = obj
+				obj.active_material_index = obj.data.materials.find(mat.name)
+				break
+		return {"FINISHED"}
+
+
+# Material Viewer
+class MH_PT_MaterialViewer(bpy.types.Panel):
+	bl_label = "Material Viewer"
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
+	bl_category = "MMD"
+	bl_parent_id = "MH_PT_MaterialSettingTool"
+	bl_options = {"DEFAULT_CLOSED"}
+
+	@classmethod
+	def poll(cls, context:bpy.types.Context):
+		# requires active object to be armature or mesh
+		obj = context.object
+		return obj and obj.pose or obj.find_armature()
+
+	def draw(self,context):
+		layout = self.layout
+
+		layout.prop(context.window_manager, 'mh_material_view_show_invisible', icon='HIDE_OFF' if context.window_manager.mh_material_view_show_invisible else 'HIDE_ON')
+
+		obj = context.object
+		if obj.pose:
+			arm = obj
+		else:
+			arm = obj.find_armature()
+
+		show_invisible = context.window_manager.mh_material_view_show_invisible
+		if show_invisible:
+			target_objs = set([o for o in context.scene.objects if o.find_armature() == arm])
+		else:
+			target_objs = set([o for o in context.visible_objects if o.find_armature() == arm])
+		
+		if not target_objs:
+			layout.label(text='Select any object that belongs to the model')
+			return
+
+		mats = set([m for o in target_objs for m in o.data.materials if not m.get('vrt_outline_mat')])
+		if not mats:
+			layout.label(text='No materials found')
+			return
+
+		row = layout.row(align=True)
+		row.alignment = 'LEFT'
+		row.label(text="Material", icon='MATERIAL_DATA')
+		row.label(text="Count:")
+		row.label(text=str(len(mats)))
+
+		for mat in mats:
+			mat:bpy.types.Material
+			row = layout.row(align=True)
+			row.alignment = 'EXPAND'
+			
+			#row.label(text="", icon_value=mat.preview.icon_id)
+			row.operator('mmd_helper.show_owner_object',
+				text="",
+				icon_value=mat.preview.icon_id
+				).mat_name = mat.name
+			row.prop(mat, 'name', text="")
+			row.separator()
+			row.prop(mat.mmd_material, 'name_j', text='Japanese')
+			row.separator()
+			row.prop(mat.mmd_material, 'name_e', text='English')
+
+		return
+	
+	def register():
+		mh_material_view_show_invisible = bpy.props.BoolProperty(
+			name="Show Materials within invisible objects",
+			description='Show materials within invisible objects',
+			default=False
+		)
+		bpy.types.WindowManager.mh_material_view_show_invisible = mh_material_view_show_invisible
+		pass
+
+
 class MH_PT_BoneMorphTool(bpy.types.Panel):
 	bl_label = "Bone Morph Helper"
 	bl_space_type = "VIEW_3D"
@@ -475,14 +579,23 @@ class MH_PT_MineDetector(bpy.types.Panel):
 	bl_parent_id = "MH_PT_PMX_ExportHelper"
 
 	def draw(self,context):
-		arm = context.active_object
 		layout = self.layout
+
+		obj = context.object
+		if not obj:
+			return
+		
+		if obj.pose:
+			arm = obj
+		else:
+			arm = obj.find_armature()
+		
 
 		layout.label(text='Detects flaws that harms export result', icon='INFO')		
 
 		col = layout.column()
-		if not arm or not arm.pose:
-			col.label(text='Select any armature')
+		if not arm:
+			col.label(text='Select any object that belongs to the model')
 			return
 
 		row = col.row(align=True)
@@ -572,6 +685,7 @@ _panels = [
 	MH_PT_AdditoinalPMXBones,
 	MH_PT_BoneSettigsTool,
 	MH_PT_MaterialSettingTool,
+	MH_PT_MaterialViewer,
 	MH_PT_MineDetector,
 ]
 

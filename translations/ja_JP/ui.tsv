@@ -129,6 +129,10 @@ O	Set mmd_material from CSV	mmd_materialをCSVから設定
 	Prevent Joining Objects with Modifiers	モディファイアを持つオブジェクトの結合を防ぐ
 	Prevent joining objects with modifiers(except armature) to avoid data loss	データ損失を避けるため、モディファイアを持つオブジェクト（アーマチュアを除く）の結合を防ぎます
 
+	Material Viewer	マテリアルビューア
+	Show Materials within invisible objects	非表示オブジェクト内のマテリアルを表示
+	Count:	個数：
+
 O	Quick Export PMX	PMXクイックエクスポート
 	Export selected objects to PMX file. Use it for objects which not require complex processing before exporting	選択オブジェクトをPMXファイルにエクスポートします。エクスポート前に複雑な処理が必要ないオブジェクトに使用してください
 	Hide Outline Modifiers	アウトラインモディファイアを非表示
