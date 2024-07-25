@@ -494,7 +494,9 @@ class MH_PT_MaterialViewer(bpy.types.Panel):
 	def poll(cls, context:bpy.types.Context):
 		# requires active object to be armature or mesh
 		obj = context.object
-		return obj and obj.pose or obj.find_armature()
+		if not obj:
+			return False
+		return obj.pose or obj.find_armature()
 
 	def draw(self,context):
 		layout = self.layout
@@ -502,6 +504,10 @@ class MH_PT_MaterialViewer(bpy.types.Panel):
 		layout.prop(context.window_manager, 'mh_material_view_show_invisible', icon='HIDE_OFF' if context.window_manager.mh_material_view_show_invisible else 'HIDE_ON')
 
 		obj = context.object
+		if not obj:
+			layout.label(text='Select any object that belongs to the model')
+			return
+		
 		if obj.pose:
 			arm = obj
 		else:
@@ -534,6 +540,7 @@ class MH_PT_MaterialViewer(bpy.types.Panel):
 			row.alignment = 'EXPAND'
 			
 			#row.label(text="", icon_value=mat.preview.icon_id)
+			mat.preview_ensure()
 			row.operator('mmd_helper.show_owner_object',
 				text="",
 				icon_value=mat.preview.icon_id
