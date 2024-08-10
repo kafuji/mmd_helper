@@ -9,7 +9,7 @@ from . import helpers
 from . import mmd_bone_schema
 
 # bone mapping update callback, automatically set to opposite bone, fingers
-def bone_map_update(self, context):
+def on_update_mmd_bone_map(self, context):
     mmd_bone_schema.apply_bone_map(self)
     pbones = context.object.pose.bones
 
@@ -28,6 +28,18 @@ def bone_map_update(self, context):
     if opposite_bone and opposite_bone is not self:
         opposite_bone['mmd_bone_map'] = self['mmd_bone_map']
         mmd_bone_schema.apply_bone_map(opposite_bone)
+
+    return
+
+# mmd bone suffix update callback
+def on_update_mmd_bone_suffix(self, context):
+    mmd_bone_schema.apply_bone_map(self)
+    pbones = context.object.pose.bones
+    opposite_bone = pbones.get(helpers.flip_name(self.name))
+    if opposite_bone and opposite_bone is not self:
+        opposite_bone['mmd_bone_suffix'] = self['mmd_bone_suffix']
+        mmd_bone_schema.apply_bone_map(opposite_bone)
+    return
 
 
 # Rulse based naming entry
@@ -74,12 +86,13 @@ __properties = {
             name='MMD Bone Definition',
             description = "Define bone name in MMD",
             items=mmd_bone_schema.enum_bones_callback,
-            update=bone_map_update,
+            update=on_update_mmd_bone_map,
             options=set()
         ),
         'mmd_bone_suffix': StringProperty(
             name='Suffix',
             description='Additive Suffix on mmd_bone name. e.g: "D"',
+            update=on_update_mmd_bone_suffix,
         )
     },
     
