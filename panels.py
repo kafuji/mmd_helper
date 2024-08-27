@@ -646,7 +646,8 @@ class MH_PT_MineDetector(bpy.types.Panel):
 		used_names = set()
 		mat_dup = list()
 		obj_in_model = set( [o for o in bpy.data.objects if o.find_armature() == arm] )
-		mats_in_model = set( [m for o in obj_in_model for m in o.data.materials] )
+
+		mats_in_model = set( [m for o in obj_in_model for m in o.data.materials if m is not None] )
 		for mat in mats_in_model:
 			name = mat.mmd_material.name_j
 			if not name:

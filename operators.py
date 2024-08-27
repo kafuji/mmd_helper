@@ -515,7 +515,7 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
         mat_dic={}
         mat_owner={} # mat:obj
         for obj in objs:
-            for mat in obj.data.materials:
+            for mat in [m for m in obj.data.materials if m]:
                 if mat.get('vrt_outline_mat'):   # Skip outline materials
                     continue
                 mat_name = mat.mmd_material.name_j if mat.mmd_material.name_j else mat.name
@@ -599,7 +599,7 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
                     m.comment = memo
 
         self.report({'INFO'}, f'Materials from CSV: {[m.name for m in mat_list]}')
-        not_configured = [m for m in {m for o in objs for m in o.data.materials if not m.get('vrt_outline_mat')} if m not in mat_list]
+        not_configured = [m for m in {m for o in objs for m in o.data.materials if m and not m.get('vrt_outline_mat')} if m not in mat_list]
         if not_configured:
             self.report({'WARNING'}, f'Missing in CSV: {[m.name for m in not_configured]}')
 
