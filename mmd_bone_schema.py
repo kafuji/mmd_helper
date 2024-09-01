@@ -1,4 +1,5 @@
 import hashlib
+from math import e
 
 from . import helpers
 from .data import mmd_bone_definition
@@ -143,7 +144,7 @@ def apply_bone_map(bone):
     # Finger mode    
     b = bone.bone
     count = 1
-    while len(b.children):
+    while b.children:
         b = b.children[0]
         count+=1
     
@@ -153,15 +154,26 @@ def apply_bone_map(bone):
         2:'２',
         3:'３',
     }
-    
-    bone_num = 3 - count if bone.mmd_bone_map == 'F_THUMB' else 4-count
+
+    if bone.mmd_bone_map == 'F_THUMB':
+        bone_num = 0 # 0, 1, 2
+    else:
+        if count > 3:
+            bone_num = 0 # 0, 1, 2, 3
+        else:
+            bone_num = 1 # 1, 2, 3
+
     b = bone.bone
     while True:
-        bone.id_data.pose.bones[b.name].mmd_bone.name_j = lr_j + name_j + num_j_dic[bone_num] + bone.mmd_bone_suffix
-        bone.id_data.pose.bones[b.name].mmd_bone.name_e = lr_e + name_e + str(bone_num) + bone.mmd_bone_suffix
+        try:
+            bone.id_data.pose.bones[b.name].mmd_bone.name_j = lr_j + name_j + num_j_dic[bone_num] + bone.mmd_bone_suffix
+            bone.id_data.pose.bones[b.name].mmd_bone.name_e = lr_e + name_e + str(bone_num) + bone.mmd_bone_suffix
+        except:
+            print(f"bone.name: {b.name}, bone_num: {bone_num} count: {count}")
+            raise Exception(e)
         bone_num += 1
-        if not len(b.children):
-            break
+        if not b.children or bone_num > 3:
+                break
         b = b.children[0]
 
     return
