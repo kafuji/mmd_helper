@@ -1,5 +1,4 @@
 import bpy
-import sys, inspect
 
 from . import mmd_bone_schema
 from os.path import exists

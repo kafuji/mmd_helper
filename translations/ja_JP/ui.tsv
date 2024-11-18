@@ -102,6 +102,8 @@ O	Set mmd_bone from CSV	mmd_boneをCSVから設定
 O	Send Bones to Clipboard	ボーンをクリップボードに送る
 	Send selected bones data to clipboard as CSV format. If no bones selected, all bones will be sent	選択ボーンのデータをCSV形式でクリップボードに送ります。選択ボーンがない場合、全ボーンが送られます
 	Scale factor for converting bone positions to MMD space	ボーン位置をMMD空間に変換するためのスケール値
+	Use Pose Position	ポーズ位置を使用
+	Use pose position instead of rest position	レスト位置の代わりにポーズ位置を使用します
 	Categories	カテゴリ
 	Select categories to include (shift+click to select multiple)	含めるカテゴリを選択してください（複数選択するにはshift+クリック）
 

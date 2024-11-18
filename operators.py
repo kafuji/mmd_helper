@@ -376,6 +376,13 @@ class MH_OT_SendBonesToClipboard(bpy.types.Operator):
         min=0.01, max=100.0, subtype='FACTOR',
     )
 
+    use_pose: BoolProperty(
+        name='Use Pose Position',
+        description='Use pose position instead of rest position',
+        default=False,
+    )
+
+
     # 'Position', 'Setting', 'Parent', 'Display', 'Add_Deform', 'Fixed_Axis', 'Local_Axis', 'IK'
     categories: EnumProperty(
         name='Categories',
@@ -415,7 +422,7 @@ class MH_OT_SendBonesToClipboard(bpy.types.Operator):
         for bone in bones:
             pmxbone = helpers.PmxBoneData(scale=self.scale)
             categories = [c for c in self.categories]
-            pmxbone.from_bone(bone, categories)
+            pmxbone.from_bone(bone, categories, use_pose=self.use_pose)
             lines.append( (bone, str(pmxbone) + '\n'))
 
         # use bone_sort_order to sort bones
@@ -425,11 +432,11 @@ class MH_OT_SendBonesToClipboard(bpy.types.Operator):
                 rep_obj = obj
                 break
         
-        # if rep_obj:
-        #     vgs = rep_obj.vertex_groups
-        #     bone_order = [vg.name for vg in vgs]
-        #     # sort lines by bone_order
-        #     lines.sort(key=lambda x: bone_order.index(x[0].name))
+        if rep_obj:
+            vgs = rep_obj.vertex_groups
+            bone_order = [vg.name for vg in vgs]
+            # sort lines by bone_order
+            lines.sort(key=lambda x: bone_order.index(x[0].name))
 
         # copy to clipboard
         bpy.context.window_manager.clipboard = ''.join([l[1] for l in lines])

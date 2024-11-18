@@ -427,18 +427,26 @@ writestr = lambda s: f'"{s}"' if s is not None else ''
 readint = lambda s: int(s)
 writeint = lambda i: str(i) if i is not None else ''
 
-def conv_loc_blender_to_mmd( loc: Vector, bone:bpy.types.PoseBone, scale: float=12.5 ) -> Vector:
-	arm:bpy.types.Object = bone.id_data
+def conv_loc_blender_to_mmd( loc: Vector, armature:bpy.types.Object, scale: float=12.5 ) -> Vector:
+	"""
+	Convert Blender's location to MMD's location
+	loc: armature space location
+	armature: armature object to translate local -> world
+	scale: scale factor for location
+	"""
 	# to World space, XYZ to XZY
-	loc = arm.matrix_world @ loc
+	loc = armature.matrix_world @ loc
 	loc = loc * scale
 	return loc.x, loc.z, loc.y
 
+
 def get_name_j(bone:bpy.types.PoseBone) -> str:
-	mmd_bone = bone.mmd_bone
-	if mmd_bone.name_j:
-		return mmd_bone.name_j
-	return bone.name
+	"""Get bone's MMD name in Japanese if exists, otherwise Blender name"""
+	return bone.mmd_bone.name_j if bone.mmd_bone.name_j else bone.name
+
+def get_name_e(bone:bpy.types.PoseBone) -> str:
+	"""Get bone's MMD name in English if exists, otherwise Blender name"""
+	return bone.mmd_bone.name_e if bone.mmd_bone.name_e else bone.name
 
 
 class PmxBoneData: # reader/writer
@@ -566,36 +574,36 @@ class PmxBoneData: # reader/writer
 		self.__parse_line(line)
 		return self
 
-	def from_bone( self, bone:bpy.types.PoseBone, categories=[] ): # write only wanted categories
-		b = bone
-		arm:bpy.types.Object = b.id_data
-		mmd = bone.mmd_bone
+	def from_bone( self, pbone:bpy.types.PoseBone, categories=[], use_pose: bool=False ): # write only wanted categories
+		arm:bpy.types.Object = pbone.id_data
+		mmd = pbone.mmd_bone
 
 #		if 'name' in categories: # always!
-		self.bone = bone
-		self.name_j = get_name_j(bone)
-		self.name_e = mmd.name_e if mmd.name_e else None
+		self.bone = pbone
+		self.name_j = get_name_j(pbone)
+		self.name_e = get_name_e(pbone)
 
 		if 'POSITION' in categories:
-			self.pos_x, self.pos_y, self.pos_z = conv_loc_blender_to_mmd(bone.bone.head_local, bone, self.scale)
+			loc = pbone.head if use_pose else pbone.bone.head_local
+			self.pos_x, self.pos_y, self.pos_z = conv_loc_blender_to_mmd(loc, arm, self.scale)
 
 		if 'SETTING' in categories:
-			self.can_rot = not all(b.lock_rotation[:])
-			self.can_move = not all(b.lock_location[:])
+			self.can_rot = not all(pbone.lock_rotation[:])
+			self.can_move = not all(pbone.lock_location[:])
 			# self.has_ik = ... # need to find any bone uses this bone as ik target
-			self.is_visible = not b.bone.hide
+			self.is_visible = not pbone.bone.hide
 			self.is_operatable = mmd.is_controllable
 
 		if 'PARENT' in categories:
-			parent = bone.parent
+			parent = pbone.parent
 			if not parent:
 				self.parent_name = ''
 			else:
 				self.parent_name = get_name_j(parent)
 
 		if 'DISPLAY' in categories:
-			if any(c.bone.use_connect for c in bone.children):
-				for child in bone.children:
+			if any(c.bone.use_connect for c in pbone.children):
+				for child in pbone.children:
 					if child.bone.use_connect:
 						self.dest_type = 1
 						self.dest_name = get_name_j(child)
@@ -603,12 +611,14 @@ class PmxBoneData: # reader/writer
 			else:
 				self.dest_type = 0
 				self.dest_name = None
-				offset = bone.bone.tail_local - bone.bone.head_local
-				offset = conv_loc_blender_to_mmd(offset, bone, self.scale)
+				head_pos = pbone.head if use_pose else pbone.bone.head_local
+				tail_pos = pbone.tail if use_pose else pbone.bone.tail_local
+				offset = tail_pos - head_pos
+				offset = conv_loc_blender_to_mmd(offset, arm, self.scale)
 				self.dest_offset_x, self.dest_offset_y, self.dest_offset_z = offset
 
 		if 'ADD_DEFORM' in categories:
-			con = next((c for c in bone.constraints if c.type in {'COPY_ROTATION', 'COPY_LOCATION'}), None)
+			con = next((c for c in pbone.constraints if c.type in {'COPY_ROTATION', 'COPY_LOCATION'}), None)
 			if con:
 				tgt_bone = arm.pose.bones.get(con.subtarget)
 				self.is_local_add = True
@@ -629,7 +639,7 @@ class PmxBoneData: # reader/writer
 		if 'EXT_PARENT' in categories: # no such property in blender mmd_tools
 			print(f"Warning: EXT_PARENT is not supported in blender mmd_tools")
 		if 'IK' in categories: # implement later
-			tgt = get_ik_target(bone)
+			tgt = get_ik_target(pbone)
 			if tgt:
 				# Set PmxBone IK data
 				self.ik_target_name = get_name_j(tgt)
@@ -644,7 +654,7 @@ class PmxBoneData: # reader/writer
 				for t in tgts:
 					t:bpy.types.PoseBone
 					ik_link = "PmxIKLink,"
-					ik_link += f'"{get_name_j(bone)}","{get_name_j(t)}",'
+					ik_link += f'"{get_name_j(pbone)}","{get_name_j(t)}",'
 
 					con_limit = t.constraints.get("mmd_ik_limit_override")
 					if con_limit and type(con_limit) == bpy.types.LimitRotationConstraint:
