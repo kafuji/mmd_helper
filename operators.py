@@ -436,7 +436,10 @@ class MH_OT_SendBonesToClipboard(bpy.types.Operator):
             vgs = rep_obj.vertex_groups
             bone_order = [vg.name for vg in vgs]
             # sort lines by bone_order
-            lines.sort(key=lambda x: bone_order.index(x[0].name))
+            try:
+                lines.sort(key=lambda x: bone_order.index(x[0].name))
+            except ValueError:
+                self.report({'WARNING'}, "Failed to sort bones by bone_order. Bones will be remain in original order")
 
         # copy to clipboard
         bpy.context.window_manager.clipboard = ''.join([l[1] for l in lines])
@@ -616,12 +619,14 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
             # uses mat_list to sort materials on mmd_tools internal collection
             # mmd_tools uses object.material order and object order in bpy.data by using prefix '000' to '999'
 
-            def check_safe_to_join(obj):
+            def check_safe_to_join(obj): # check if object is safe to join
+                # check if object has modifiers except armature
                 if obj.modifiers:
                     for mod in obj.modifiers:
                         if mod.type != 'ARMATURE':
                             return False
                 return True
+            
 
             # join objects
             if self.join_objects_before_sort:
@@ -848,11 +853,19 @@ class MH_OT_Quick_Export_Objects(bpy.types.Operator, ExportHelper):
         if not mmd_root:
             return False
         
-        return obj and obj.type == 'MESH'
+        return obj and obj.type in ('MESH', 'ARMATURE')
 
 
     def invoke(self, context, event):
-        objs = helpers.get_target_objects(context.selected_objects, type_filter='MESH')
+        obj = context.object
+        
+        if obj.type == 'MESH':
+            objs = helpers.get_target_objects(context.selected_objects, type_filter='MESH')
+        elif obj.type == 'ARMATURE':
+            objs = helpers.get_objects_by_armature(obj, context.visible_objects)
+        else:
+            self.report({'ERROR'}, "Unsupported object type")
+            return {'CANCELLED'}
 
         # print(f"Exporting objects: {[o.name for o in objs]}")
 

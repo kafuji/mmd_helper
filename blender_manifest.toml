@@ -1,0 +1,23 @@
+schema_version = "1.0.0"
+id = "mmd_helper"
+version = "0.3.5"
+name = "PMX setup helper for mmd_tools"
+tagline = "Tools for help setup PMX model data on top of mmd_tools"
+maintainer = "Kafuji Sato"
+type = "add-on"
+website = "https://github.com/kafuji/mmd_helper"
+tags = ["Animation"]
+
+blender_version_min = "3.0.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
+
+copyright = [
+   "2023-2024 Kafuji Sato",
+]
+
+[permissions] 
+files = "Save/Load bone, material data as CSV format"
+clipboard = "Copy bone data as CSV format"

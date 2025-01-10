@@ -15,11 +15,11 @@ class MH_PT_PMX_ExportHelper(bpy.types.Panel):
 	bl_region_type = "UI"
 	bl_category = "MMD"
 
-	module_names = ('mmd_tools', 'bl_ext.blender_org.mmd_tools')
+	mmd_tools_module_names = ('mmd_tools', 'bl_ext.blender_org.mmd_tools')
 
 	@classmethod
 	def poll(cls, context):
-		for name in cls.module_names:
+		for name in cls.mmd_tools_module_names:
 			if name in bpy.context.preferences.addons:
 				return True
 		return False
