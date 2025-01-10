@@ -20,7 +20,8 @@ class MH_PT_context_menu(bpy.types.Menu):
             l.operator("mmd_tools.import_model", text="Import PMX/PMD")
             l.operator("mmd_tools.import_vmd", text="Import VMD")
             l.operator("mmd_tools.export_vmd", text="Export VMD")
-        elif obj.type == 'MESH':
+        if obj.type in {'MESH', 'ARMATURE'}:
+            l.separator()
             l.operator("mmd_helper.quick_export_objects")
         
         return
