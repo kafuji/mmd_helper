@@ -13,7 +13,7 @@ def on_update_mmd_bone_map(self, context):
     mmd_bone_schema.apply_bone_map(self)
     pbones = context.object.pose.bones
 
-    if 0:
+    if 0: # Disabled for some cases where the user intentionally set the same bone map
         # remove duplicate
         if self.mmd_bone_map != 'NONE':
             for bone in pbones:

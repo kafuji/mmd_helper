@@ -128,6 +128,8 @@ def convert_mmd_bone_name_to_blender_friendly(name:str) -> str:
 # apply bone map. set mmd_bone.name_j and name_e
 def apply_bone_map(bone):
     if bone.mmd_bone_map == 'NONE':
+        bone.mmd_bone.name_j = ""
+        bone.mmd_bone.name_e = ""
         return
 
     name_j = bone_name(bone.mmd_bone_map)
