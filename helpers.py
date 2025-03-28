@@ -621,7 +621,7 @@ class PmxBoneData: # reader/writer
 			con = next((c for c in pbone.constraints if c.type in {'COPY_ROTATION', 'COPY_LOCATION'}), None)
 			if con:
 				tgt_bone = arm.pose.bones.get(con.subtarget)
-				self.is_local_add = True
+				self.is_local_add = False
 				self.has_addrot = con.type == 'COPY_ROTATION'
 				self.has_addloc = con.type == 'COPY_LOCATION'
 				self.add_rate = con.influence

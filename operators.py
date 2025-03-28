@@ -689,10 +689,6 @@ class MH_OT_LoadMaterialFromCSV(bpy.types.Operator,ImportHelper):
 
 
 
-
-
-
-
 ################################################################################
 class MH_OT_Clear_MMD_Material_Names(bpy.types.Operator):
     bl_idname = "mmd_helper.clear_mmd_material_names"
