@@ -2,46 +2,13 @@
 # Helper Functions
 ################################################################################
 import bpy
-from contextlib import contextmanager
 
-from mathutils import Vector, Euler, Quaternion, Matrix
+from mathutils import Vector
 
 import math
 
-################################################################################
-def dump(obj):
-	for attr in dir(obj):
-		if hasattr( obj, attr ):
-			print( "obj.%s = %s" % (attr, getattr(obj, attr)))
+from . import common
 
-
-
-##############################################################
-@contextmanager
-def mode_change(mode):
-	lastMode = None
-	if mode != bpy.context.mode:
-		lastMode = bpy.context.mode
-		bpy.ops.object.mode_set(mode=mode, toggle=False)
-
-	try:
-		yield lastMode
-
-	finally:
-		if lastMode is None:
-			return
-				
-		if lastMode in ('EDIT_MESH','EDIT_CURVE','EDIT_ARMATURE'):
-			lastMode = 'EDIT'
-		elif lastMode == 'PAINT_WEIGHT':
-			lastMode = 'WEIGHT_PAINT'
-		elif lastMode == 'PAINT_VERTEX':
-			lastMode = 'VERTEX_PAINT'
-		elif lastMode == 'PAINT_TEXTURE':
-			lastMode = 'TEXTURE_PAINT'
-
-		bpy.ops.object.mode_set(mode=lastMode, toggle=False)
-		return
 
 ##############################################################
 def is_armature(obj: bpy.types.Object) -> bool:
@@ -81,41 +48,6 @@ def ensure_poselib(obj: bpy.types.Object, name:str ) -> bpy.types.Action:
 	if obj.pose_library is None or obj.pose_library.name != name:
 		obj.pose_library = bpy.data.actions.new( name )
 	return obj.pose_library
-
-##############################################################
-def ensure_fcurve( action:bpy.types.Action, data, attr:str ):
-	value = getattr(data, attr)
-	if value is None:
-		return None
-	#fcurve: bpy.types.FCurve = action.fcurves.keyframe_insert()
-	return None
-
-##############################################################
-def ensure_visible_obj( obj: bpy.types.Object ):
-	if obj.visible_get():
-		return
-
-	obj.hide_viewport = False
-	obj.hide_set(False)
-
-	if obj.visible_get():
-		return
-
-	# still invisible. show 
-	def check_layer_recursive(layer_collection):
-		for lc in layer_collection.children:
-			if check_layer_recursive(lc):
-				lc.hide_viewport = lc.collection.hide_viewport = False
-				return True
-		
-		if obj in layer_collection.collection.objects.values():
-			layer_collection.exclude = False
-			return True
-		return False
-
-	check_layer_recursive(bpy.context.view_layer.layer_collection)
-
-	return
 
 
 import re
@@ -251,7 +183,7 @@ def get_target_objects( from_obj=None, type_filter='' ):
 
 ################################################################################
 def create_morph_list():
-		print(f"Creating Morph Data.")
+		# print(f"Creating Morph Data.")
 		morphdic = dict()
 
 		def __AddTarget(name, datablock:bpy.types.ID, type):
@@ -405,6 +337,15 @@ def get_bone_by_mmd_bone_id(armature: bpy.types.Object, bone_id: int) -> bpy.typ
 	return None
 
 
+#################################################################################
+def get_bone_by_mmd_name_j(armature: bpy.types.Object, name: str) -> bpy.types.PoseBone:
+	"""Returns bone by mmd_bone.name_j or mmd_bone.name_e"""
+	pbones = armature.pose.bones
+	ret = [b for b in pbones if b.mmd_bone.name_j == name or (b.mmd_bone.name_j == "" and b.name == name)]
+	if len(ret) > 1:
+		print(f"Warning: More than one bone found with name {name}.")
+	return next(iter(ret), None) # return first or None
+
 
 ################################################################################
 
@@ -437,6 +378,17 @@ def conv_loc_blender_to_mmd( loc: Vector, armature:bpy.types.Object, scale: floa
 	# to World space, XYZ to XZY
 	loc = armature.matrix_world @ loc
 	loc = loc * scale
+	return loc.x, loc.z, loc.y
+
+def conv_loc_mmd_to_blender( loc: Vector, armature:bpy.types.Object, scale: float=12.5 ) -> Vector:
+	"""
+	Convert MMD's location to Blender's location
+	loc: armature space location
+	armature: armature object to translate world -> local
+	scale: scale factor for location
+	"""
+	loc = Vector(loc) / scale
+	loc = armature.matrix_world.inverted() @ loc
 	return loc.x, loc.z, loc.y
 
 
@@ -574,6 +526,71 @@ class PmxBoneData: # reader/writer
 		self.__parse_line(line)
 		return self
 
+	def to_bone( self, armature:bpy.types.Object ) -> bpy.types.PoseBone:
+		"""
+		Convert to Blender's PoseBone
+
+		It finds the bone by mmd_bone.name_j or mmd_bone.name_e.
+		If bone is available: Use it and set the attributes.
+		If bone is not available: Create a new bone and set the attributes.
+		"""
+		arm = armature
+
+		# Set bone position
+		with common.save_context(mode='EDIT', active_obj=arm):
+			pbone = get_bone_by_mmd_name_j(arm, self.name_j)
+			if pbone:
+				ebone = arm.data.edit_bones.get(pbone.name)
+			else:
+				# create new bone
+				ebone = arm.data.edit_bones.new(self.name_j)
+
+			# Position
+			pos_x = getattr(self, 'pos_x', 0.0)
+			pos_y = getattr(self, 'pos_y', 0.0)
+			pos_z = getattr(self, 'pos_z', 0.0)
+			pos = conv_loc_mmd_to_blender( (pos_x, pos_y, pos_z), arm, self.scale )
+			ebone.head = pos
+
+			# Parent
+			parent = get_bone_by_mmd_name_j(arm, self.parent_name)
+			if parent:
+				ebone.parent = arm.data.edit_bones.get(parent.name)
+			else:
+				ebone.parent = None
+
+			# Display Destination
+			dest_type = getattr(self, 'dest_type', 0)
+			dest_name = getattr(self, 'dest_name', None)
+			dest_offset_x = getattr(self, 'dest_offset_x', 0.0)
+			dest_offset_y = getattr(self, 'dest_offset_y', 0.0)
+			dest_offset_z = getattr(self, 'dest_offset_z', 0.0)
+
+			if dest_type == 0: # offset
+				dest_offset = conv_loc_mmd_to_blender( (dest_offset_x, dest_offset_y, dest_offset_z), arm, self.scale )
+				ebone.tail = ebone.head + dest_offset
+			elif dest_type == 1: # bone
+				dest_bone = get_bone_by_mmd_name_j(arm, dest_name)
+				if dest_bone:
+					ebone.tail = arm.data.edit_bones.get(dest_bone.name).head
+				else:
+					pass # Let blender decide the tail position
+		# end of with common.save_context('EDIT', active_obj=arm)
+
+		# Set bone properties
+		with common.save_context(mode='POSE', active_obj=arm):
+			pbone = get_bone_by_mmd_name_j(arm, self.name_j)
+			if not pbone:
+				print(f"Warning: Bone {self.name_j} not found in armature {arm.name}.")
+				return None
+
+			pbone.mmd_bone.name_j = self.name_j
+			pbone.mmd_bone.name_e = getattr(self, 'name_e', "")
+			pbone.mmd_bone.bone_id = ensure_mmd_bone_id(pbone)
+		
+		return pbone
+
+
 	def from_bone( self, pbone:bpy.types.PoseBone, categories=[], use_pose: bool=False ): # write only wanted categories
 		arm:bpy.types.Object = pbone.id_data
 		mmd = pbone.mmd_bone
@@ -650,7 +667,7 @@ class PmxBoneData: # reader/writer
 				# Create PmxIKLink lines
 				self.ik_links = []
 				tgts = get_ik_target_chain(tgt)
-				print(f"Additional IK targets: {[t.name for t in tgts]}")
+				# print(f"Additional IK targets: {[t.name for t in tgts]}")
 				for t in tgts:
 					t:bpy.types.PoseBone
 					ik_link = "PmxIKLink,"
