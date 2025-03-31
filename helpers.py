@@ -4,6 +4,7 @@
 import bpy
 
 from mathutils import Vector
+from typing import Tuple, List, Dict, Any, Optional
 
 import math
 
@@ -134,7 +135,41 @@ def remove_lr_from_name(name: str) -> str:
 				name += s if s else ''
 			return name
 	return ''
-	
+
+
+#################################################################################
+def get_lr_string(name, eng=False):
+    lr = get_lr_from_name(name)
+
+    lr_map = {
+        'j':{
+            '': '',
+            'L': '左',
+            'R': '右'
+        },
+        'e':{
+            '': '',
+            'L': 'left ',
+            'R': 'right '
+        }
+    }
+    return lr_map['e'][lr] if eng else lr_map['j'][lr]
+
+
+##################################################################################
+# convert mmd bone name to blender friendly name, e.g. '左足首' to '足首.L'
+def convert_mmd_bone_name_to_blender_friendly(name:str) -> str:
+    if name.startswith('左'):
+        return name[1:] + '.L'
+    if name.startswith('右'):
+        return name[1:] + '.R'
+    if name.startswith('left '):
+        return name[5:] + '.L'
+    if name.startswith('right '):
+        return name[6:] + '.R'
+    
+    return name
+
 
 ################################################################################
 def get_objects_by_armature(arm: bpy.types.Object, from_objects ):
@@ -378,7 +413,7 @@ def conv_loc_blender_to_mmd( loc: Vector, armature:bpy.types.Object, scale: floa
 	# to World space, XYZ to XZY
 	loc = armature.matrix_world @ loc
 	loc = loc * scale
-	return loc.x, loc.z, loc.y
+	return Vector((loc.x, loc.z, loc.y))
 
 def conv_loc_mmd_to_blender( loc: Vector, armature:bpy.types.Object, scale: float=12.5 ) -> Vector:
 	"""
@@ -389,7 +424,7 @@ def conv_loc_mmd_to_blender( loc: Vector, armature:bpy.types.Object, scale: floa
 	"""
 	loc = Vector(loc) / scale
 	loc = armature.matrix_world.inverted() @ loc
-	return loc.x, loc.z, loc.y
+	return Vector((loc.x, loc.z, loc.y))
 
 
 def get_name_j(bone:bpy.types.PoseBone) -> str:
@@ -506,7 +541,8 @@ class PmxBoneData: # reader/writer
 		return self.__str__()
 
 
-	def __parse_line(self, line:str):
+	def from_line(self, line:str):
+		print(f"Parsing PmxBone line: {line}")
 		# split line
 		values = line.split(',')
 		if len(values) < 40:
@@ -517,14 +553,12 @@ class PmxBoneData: # reader/writer
 		for col_data, value in zip(self.col_data, values):
 			attr_name, read, _ = col_data
 			setattr(self, attr_name, read(value))
+		
+		print(f"Parsed PmxBone: {self}")
 		return
 
 	def to_str(self):
 		return str(self)
-
-	def from_line(self, line:str):
-		self.__parse_line(line)
-		return self
 
 	def to_bone( self, armature:bpy.types.Object ) -> bpy.types.PoseBone:
 		"""
@@ -534,6 +568,11 @@ class PmxBoneData: # reader/writer
 		If bone is available: Use it and set the attributes.
 		If bone is not available: Create a new bone and set the attributes.
 		"""
+		if not getattr(self, 'name_j', None):
+			print(f"Warning: Bone name not set. Cannot convert to PoseBone.")
+			print(self)
+			return None
+
 		arm = armature
 
 		# Set bone position
@@ -644,7 +683,9 @@ class PmxBoneData: # reader/writer
 				self.add_rate = con.influence
 				if not tgt_bone:
 					self.add_parent_name = ''
-				self.add_parent_name = get_name_j(tgt_bone)
+					print(f"Warning: Target bone not found for {pbone.name, con.name}.")
+				else:
+					self.add_parent_name = get_name_j(tgt_bone)
 
 		if 'FIXED_AXIS' in categories:
 			self.has_fixed_axis = mmd.enabled_fixed_axis

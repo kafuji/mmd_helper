@@ -8,6 +8,7 @@ O	Export VMD	VMDモーションをエクスポート
 
 	Additional PMX bone definitions file	追加のPMXボーン定義ファイル
 	Additional PMX bone definitions file:	追加のPMXボーン定義ファイル：
+	Path to additional PMX bone definitions file in CSV format. See Readme to create your own	CSV形式の追加PMXボーン定義ファイルへのパス。自分で作成する方法はReadmeを参照してください
 	Please save addon preferenses to keep this!	この設定を維持するにはアドオンプリファレンスを保存してください
 	Bone Naming Helper	ボーン名設定ヘルパー
 	Bone naming by definitions	ボーン定義による名前設定

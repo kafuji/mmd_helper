@@ -1,228 +1,245 @@
 import hashlib
-from math import e
+from typing import List
+
+import bpy
+from bpy.props import *
+from bpy.types import PropertyGroup
 
 from . import helpers
 from .data import mmd_bone_definition
 
-# Internal Data
-_idx_table = {}
-_cat_table = {} # cat: bone_id
-_bone_table = {} # bone_id: (name_j, name_e, is_essential, category)
-_use_eng_display = False
 
+# Bone definition item
+class MH_PG_BoneDefinitionItem(PropertyGroup):
+    category: StringProperty(name='Category', options=set())
+    name: StringProperty(name='ID', options=set())
+    name_j: StringProperty(name='Japanese', options=set())
+    name_e: StringProperty(name='English', options=set())
+    is_essential: BoolProperty(name='Essential', default=False, options=set())
 
-# append pmx bone data, update internal data
-def append_bone_internal(bone_id, name_j, name_e, is_essential, category):
-    # create mian db:    name_j, name_e, is_essencial, category, EnumItem idx
-    _bone_table[bone_id] = (name_j, name_e, is_essential, category)
+class MH_PG_EssentialBoneItem(PropertyGroup):
+    name: StringProperty(name='ID', options=set())
 
-    # create 4byte hashes for bone_id
-    idx = int.from_bytes(hashlib.sha256(bone_id.encode()).digest()[:3], 'little')
-    while idx in _idx_table.values(): # resolve conflict
-        print(f'{__name__} Warning: append_bone_internal({bone_id}) idx conflict: resolving')
-        idx += 1
-    _idx_table[bone_id] = idx
+# # Bone category item
+# class MH_PG_BoneCategoryItem(PropertyGroup):
+#     name: StringProperty(name='ID', options=set())
+#     display_name: StringProperty(name='Name', options=set())
+#     description: StringProperty(name='Description', options=set())
+#     bones: CollectionProperty(type=MH_PG_BoneDefinitionItem)
+#     active_index: IntProperty()
 
-    # category: bone_id table
-    if bone_id in _cat_table[category]:
-        _cat_table[category].remove(bone_id)
+# Bone definition holder
+class MH_PG_MMDBoneSchema(PropertyGroup):
+    bones: CollectionProperty(type=MH_PG_BoneDefinitionItem)
+    essential_bones: CollectionProperty(type=MH_PG_EssentialBoneItem)
+    active_index: IntProperty()
 
-    _cat_table[category].append(bone_id)
-    return
+    additional_definitions_path: StringProperty(
+        name="Additional PMX bone definitions file",
+        description="Path to additional PMX bone definitions file in CSV format. See Readme to create your own",
+        default='',
+        subtype='FILE_PATH',
+        options=set(),
+        update=lambda self, context: self.load_definitions()
+    )
 
-# update pmx bone data, update internal data
-def update_bone_internal(bone_id, name_j, name_e, is_essential, category):
-    if _bone_table[bone_id] == (name_j, name_e, is_essential, category):
+    def get_bonedata_by_id(self, id) -> MH_PG_BoneDefinitionItem:
+        return self.bones.get(id, None)
+
+    def get_bone_id_list(self, only_essentials:bool=False) -> List[str]:
+        if only_essentials:
+            return [bone.name for bone in self.essential_bones]
+
+        return [bone.name for bone in self.bones]
+
+    def __add_bone_definition(self, category_id, bone_id, name_j, name_e, is_essential):
+        # Check if the bone ID already exists
+        if self.get_bonedata_by_id(bone_id) is not None:
+            print(f"Bone ID {bone_id} already exists. Skipping bone definition.")
+            return
+
+        # Create a new bone definition item
+        bone:MH_PG_BoneDefinitionItem = self.bones.add()
+        bone.category = category_id
+        bone.name = bone_id
+        bone.name_j = name_j
+        bone.name_e = name_e
+        bone.is_essential = is_essential
+
+        # Check if the bone is essential
+        if is_essential:
+            self.essential_bones.add().name = bone_id
+
+    def __load_default_definitions(self):
+        # Clear existing bone definitions
+        self.bones.clear()
+
+        # load default bone definitions
+        for cat, items in mmd_bone_definition.bones.items():
+            for item in items:
+                self.__add_bone_definition(cat, *item)
         return
 
-    old_category = _bone_table[bone_id][3]
-    _bone_table[bone_id] = (name_j, name_e, is_essential, category)
+    def __load_additional_definitions(self):
+        # restore default bone definitions
+        filepath = self.additional_definitions_path
+        if not filepath:
+            return
 
-    # category
-    if _cat_table.get(category) is None:
-        _cat_table[category] = []
+        # Convert it to full path if it's relative
+        filepath = bpy.path.abspath(filepath)
+        if not filepath.endswith('.csv'):
+            print(f"Invalid file format: {filepath}. Expected .csv")
+            return
 
-    _cat_table[old_category].remove(bone_id)
-    _cat_table[category].append(bone_id)
-    return
-
-
-# remove pmx bone data, update internal data
-def remove_bone_internal(bone_id):
-    del _idx_table[bone_id]
-    cat = _bone_table[bone_id][3]
-    del _bone_table[bone_id]
-    _cat_table[cat].remove(bone_id)
-    return
-    
-# set english mode for enum_bones_callback()
-def use_english(flag):
-    global _use_eng_display
-    _use_eng_display = flag
-
-# returns enum list for EnumProperty
-def enum_bones_callback(scene, context):
-    ret = [('NONE', 'None', 'Export this bone as is', 0)]
-
-    # EnumProperty.itemsにCollectionProperty内StringPropertyの日本語を与えると文字化けするので内部データのみを使用
-    for bone_ids in _cat_table.values():
-        ret.append(None)
-        for bone_id in bone_ids:
-            data = _bone_table[bone_id]
-            ret.append( (bone_id, data[0], data[1], '', _idx_table[bone_id]))
-
-    return ret
-
-
-# returns list of bone_id, filtered by is_essential
-def bone_id_list(only_essentials):
-    if only_essentials:
-        return [id for id, ent in _bone_table.items() if ent[2] is True]
-    return _bone_table.keys()
-
-
-# returns mmd bone name by id
-def bone_name(bone_id, eng=False):
-    return _bone_table[bone_id][eng]
-
-# returns mmd bone name by id
-def bone_category(bone_id):
-    return _bone_table[bone_id][3]
-
-def bone_category_name(bone_id):
-    return mmd_bone_definition.categories[bone_category(bone_id)][0]
-
-def get_lr_string(name, eng=False):
-    lr = helpers.get_lr_from_name(name)
-
-    lr_map = {
-        'j':{
-            '': '',
-            'L': '左',
-            'R': '右'
-        },
-        'e':{
-            '': '',
-            'L': 'left ',
-            'R': 'right '
-        }
-    }
-    return lr_map['e'][lr] if eng else lr_map['j'][lr]
-
-# convert mmd bone name to blender friendly name, e.g. '左足首' to '足首.L'
-def convert_mmd_bone_name_to_blender_friendly(name:str) -> str:
-    if name.startswith('左'):
-        return name[1:] + '.L'
-    if name.startswith('右'):
-        return name[1:] + '.R'
-    if name.startswith('left '):
-        return name[5:] + '.L'
-    if name.startswith('right '):
-        return name[6:] + '.R'
-    
-    return name
-
-
-
-
-# apply bone map. set mmd_bone.name_j and name_e
-def apply_bone_map(bone):
-    if bone.mmd_bone_map == 'NONE':
-        bone.mmd_bone.name_j = ""
-        bone.mmd_bone.name_e = ""
-        return
-
-    name_j = bone_name(bone.mmd_bone_map)
-    name_e = bone_name(bone.mmd_bone_map, True)
-    lr_j = get_lr_string(bone.name)
-    lr_e = get_lr_string(bone.name, True)
-
-    # Normal bones
-    if not bone.mmd_bone_map.startswith('F_'):
-        bone.mmd_bone.name_j = lr_j + name_j + bone.mmd_bone_suffix
-        bone.mmd_bone.name_e = lr_e + name_e + bone.mmd_bone_suffix
-        return
-
-    # Finger mode    
-    b = bone.bone
-    count = 1
-    while b.children:
-        b = b.children[0]
-        count+=1
-    
-    num_j_dic = {
-        0:'０',
-        1:'１',
-        2:'２',
-        3:'３',
-    }
-
-    if bone.mmd_bone_map == 'F_THUMB':
-        bone_num = 0 # 0, 1, 2
-    else:
-        if count > 3:
-            bone_num = 0 # 0, 1, 2, 3
-        else:
-            bone_num = 1 # 1, 2, 3
-
-    b = bone.bone
-    while True:
+        # load additional bone definitions from file
         try:
-            bone.id_data.pose.bones[b.name].mmd_bone.name_j = lr_j + name_j + num_j_dic[bone_num] + bone.mmd_bone_suffix
-            bone.id_data.pose.bones[b.name].mmd_bone.name_e = lr_e + name_e + str(bone_num) + bone.mmd_bone_suffix
-        except:
-            print(f"bone.name: {b.name}, bone_num: {bone_num} count: {count}")
-            raise Exception(e)
-        bone_num += 1
-        if not b.children or bone_num > 3:
-                break
-        b = b.children[0]
+            with open(filepath, 'r') as f:
+                next(f)  # skip header
+                lines = f.readlines()
+        except FileNotFoundError:
+            print(f"File not found: {filepath}")
+            return
+
+        for line in lines:
+            if not line.strip():
+                continue
+            parts = line.strip().split(',')
+            if len(parts) != 5:
+                continue
+
+            category_id, bone_id, name_j, name_e, is_essential = parts
+
+            if self.get_bonedata_by_id(bone_id) is not None:
+                print(f"Bone ID {bone_id} already exists. Skipping bone definition.")
+                continue
+
+            self.__add_bone_definition(category_id, bone_id, name_j, name_e, is_essential.lower() == 'true')
+
+            print(f"Loaded additional bone definition: {bone_id} - {name_j} / {name_e}")
+
+        return
+
+
+    def load_definitions(self):
+        # Load default and additional definitions
+        self.__load_default_definitions()
+        self.__load_additional_definitions()
+        return
+
+
+    def __get_lr_string(self, name, eng=False):
+        lr = helpers.get_lr_from_name(name)
+
+        lr_map = {
+            'j':{
+                '': '',
+                'L': '左',
+                'R': '右'
+            },
+            'e':{
+                '': '',
+                'L': 'left ',
+                'R': 'right '
+            }
+        }
+        return lr_map['e'][lr] if eng else lr_map['j'][lr]
+
+
+    def apply_bone_map(self, pbone: bpy.types.PoseBone):
+        if not pbone.mmd_bone_map: # Not assigned, skip
+            return
+
+        bone_data = self.get_bonedata_by_id(pbone.mmd_bone_map)
+        if not bone_data: # Undefined bone map id, do nothing
+            return
+
+        if pbone.mmd_bone_map == 'NONE': # Assigned to none, clear the name
+            pbone.mmd_bone.name_j = ""
+            pbone.mmd_bone.name_e = ""
+            return
+
+        name_j = bone_data.name_j
+        name_e = bone_data.name_e
+
+        lr_j = self.__get_lr_string(pbone.name)
+        lr_e = self.__get_lr_string(pbone.name, True)
+
+        # Normal bones
+        if not pbone.mmd_bone_map.startswith('F_'):
+            pbone.mmd_bone.name_j = lr_j + name_j + pbone.mmd_bone_suffix
+            pbone.mmd_bone.name_e = lr_e + name_e + pbone.mmd_bone_suffix
+            return
+
+        # Finger mode    
+        b = pbone.bone
+        count = 1
+        while b.children:
+            b = b.children[0]
+            count+=1
+        
+        num_j_dic = {
+            0:'０',
+            1:'１',
+            2:'２',
+            3:'３',
+        }
+
+        if pbone.mmd_bone_map == 'F_THUMB':
+            bone_num = 0 # 0, 1, 2
+        else:
+            if count > 3:
+                bone_num = 0 # 0, 1, 2, 3
+            else:
+                bone_num = 1 # 1, 2, 3
+
+        b = pbone.bone
+        while True:
+            try:
+                pbone.id_data.pose.bones[b.name].mmd_bone.name_j = lr_j + name_j + num_j_dic[bone_num] + pbone.mmd_bone_suffix
+                pbone.id_data.pose.bones[b.name].mmd_bone.name_e = lr_e + name_e + str(bone_num) + pbone.mmd_bone_suffix
+            except Exception as e:
+                print(f"bone.name: {b.name}, bone_num: {bone_num} count: {count}")
+                raise Exception(e)
+            bone_num += 1
+            if not b.children or bone_num > 3:
+                    break
+            b = b.children[0]
+
+        return
+
+
+def apply_bone_map(pbone:bpy.types.PoseBone):
+    pbone.id_data.mmd_bone_schema.apply_bone_map(pbone)
+    return
+
+# Register and unregister functions
+__classes_in_order = (
+    MH_PG_BoneDefinitionItem,
+    MH_PG_EssentialBoneItem,
+    MH_PG_MMDBoneSchema,
+)
+
+# Init definitions on all armature objects on startup/load
+def on_load():
+    for obj in (o for o in bpy.data.objects if o.pose):
+        obj.mmd_bone_schema.load_definitions()
+    return
+
+def register():
+    for cls in __classes_in_order:
+        bpy.utils.register_class(cls)
+    bpy.types.Object.mmd_bone_schema = PointerProperty(type=MH_PG_MMDBoneSchema, name='MMD Bone Schema', description='MMD Bone Schema')
+
+    bpy.app.handlers.load_post.append(on_load)
 
     return
 
+def unregister():
+    del bpy.types.Object.mmd_bone_schema
+    for cls in reversed(__classes_in_order):
+        bpy.utils.unregister_class(cls)
 
-user_bones = []
-# load bone definitions from csv
-def load_user_bones_from_csv(filepath):
-    with open(filepath, 'r') as fp:
-        next(fp) # skip header
-        for line in fp:
-            array = line.split(',')
-            if len(array) != 5:
-                continue
+    bpy.app.handlers.load_post.remove(on_load)
 
-            (cat, id, name_j, name_e, essential) = [i.strip() for i in array]
-
-            if cat not in _cat_table.keys():
-                print(f'User pmx bone definitions: Category {cat} is not defined. Ignoring this definition.')
-                continue
-            if id in _bone_table.keys():
-                print(f'User pmx bone definitions: Bone ID {id} is already used. Ignoring this definition.')
-                continue
-
-            append_bone_internal(id, name_j, name_e, essential, cat)
-            user_bones.append(id)
-
-# clear user bone definitions
-def clear_user_bones():
-    for id in user_bones:
-        remove_bone_internal(id)
-    user_bones.clear()
     return
-
-# initialize internal data
-def init():
-    # init idx
-    _idx_table['NONE'] = 0
-
-    # init cat_table
-    for cat in mmd_bone_definition.categories.keys():
-        _cat_table[cat] = []
-
-    # init bone_table
-    for cat, definitions in mmd_bone_definition.bones.items():
-        for bone_data in definitions:
-            (id, name_j, name_e, essential) = bone_data
-            append_bone_internal(id, name_j, name_e, essential, cat)
-
-init()

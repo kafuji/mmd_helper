@@ -54,8 +54,8 @@ bones={
     ],
 
     'LEGS':[
-        ('UPPER_LEG', '足', 'leg', True),
-        ('LOWER_LEG', 'ひざ', 'knee', True),
+        ('LEG', '足', 'leg', True),
+        ('KNEE', 'ひざ', 'knee', True),
         ('FOOT', '足首', 'ankle', True),
         ('TOE', 'つま先', 'toe', True),
     ],

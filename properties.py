@@ -21,7 +21,7 @@ def on_update_mmd_bone_map(self, context):
                     continue
 
                 if bone.mmd_bone_map == self.mmd_bone_map:
-                    bone['mmd_bone_map'] = 0
+                    bone['mmd_bone_map'] = 'NONE'
 
     # bone map mirror
     opposite_bone = pbones.get(helpers.flip_name(self.name))
@@ -65,27 +65,27 @@ class MH_NamingRules(PropertyGroup):
 
 
 # Main props for UI 
-class MH_Props(PropertyGroup):
+class MH_UIProps(PropertyGroup):
     show_suffix: BoolProperty(name='Show Suffix', description='Show suffix option: typically used for adding D or something', default=True)
     show_mmd_bone: BoolProperty(name='Show mmd_bone.name', description='Show mmd_bone.name_j and mmd_bone.name_e in the list', default=False)
     use_english: BoolProperty(name='Use English', description='Use english bone name for display', default=False)
     max_display: IntProperty(name='Display Max', description='Maximum number of items shown on the list', default=10)
     alert_only_essentials: BoolProperty(name='Alert essentials only', default=True, options=set())
 
+
 ################################################################################
 # register & unregister this module
 _property_classes = (
-    MH_Props,
+    MH_UIProps,
     MH_NamingRule,
     MH_NamingRules,
 )
 
 __properties = {
     bpy.types.PoseBone: {
-        'mmd_bone_map': EnumProperty(
+        'mmd_bone_map': StringProperty(
             name='MMD Bone Definition',
             description = "Define bone name in MMD",
-            items=mmd_bone_schema.enum_bones_callback,
             update=on_update_mmd_bone_map,
             options=set()
         ),
@@ -97,7 +97,7 @@ __properties = {
     },
     
     bpy.types.WindowManager: {
-        'mh_props': PointerProperty(type=MH_Props)
+        'mh_props': PointerProperty(type=MH_UIProps)
     },
     
     bpy.types.Scene:{

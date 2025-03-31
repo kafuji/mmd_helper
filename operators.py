@@ -1,10 +1,8 @@
 ################################################################################
 # Custom Operators
 ################################################################################
-import copy
 import bpy
 from bpy.props import *
-from bpy.types import Context
 from .properties import *
 import mathutils
 import math
@@ -124,7 +122,7 @@ class MH_OT_ApplyMMDBoneNames(bpy.types.Operator):
             b = arm.pose.bones[bone.name]
             name = b.mmd_bone.name_j if 'NAME_J' in self.j_or_e else b.mmd_bone.name_e
             if self.convert_lr:
-                name = schema.convert_mmd_bone_name_to_blender_friendly(name)
+                name = helpers.convert_mmd_bone_name_to_blender_friendly(name)
 
             if name:
                 b.mmd_bone['original_name'] = bone.name
@@ -443,6 +441,44 @@ class MH_OT_SendBonesToClipboard(bpy.types.Operator):
 
         # copy to clipboard
         bpy.context.window_manager.clipboard = ''.join([l[1] for l in lines])
+
+        return {"FINISHED"}
+
+
+#################################################################################
+class MH_OT_GetBonesFromClipboard(bpy.types.Operator):
+    bl_idname = "mmd_helper.get_bones_from_clipboard"
+    bl_label = "Get Bones from Clipboard"
+    bl_description = "Get bones data from clipboard as CSV format. If no bones selected, all bones will be sent"
+    bl_options = {"REGISTER","UNDO"}
+
+    scale: FloatProperty(
+        name='Scale',
+        description='Scale factor for converting bone positions to MMD space',
+        default=12.5,
+        min=0.01, max=100.0, subtype='FACTOR',
+    )
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        if not obj or not obj.pose: # requires armature is active
+            return False
+        return context.mode in ('OBJECT', 'POSE', 'EDIT_ARMATURE')
+
+    def execute(self, context):
+        arm = context.object
+
+        # get lines from clipboard
+        lines = bpy.context.window_manager.clipboard.split('\n')
+        if not lines:
+            self.report({'ERROR'}, 'Clipboard is empty')
+            return {'CANCELLED'}
+        
+        for line in lines:
+            pmxbone = helpers.PmxBoneData(scale=self.scale)
+            pmxbone.from_line(line)
+            pmxbone.to_bone(arm)
 
         return {"FINISHED"}
 

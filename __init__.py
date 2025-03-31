@@ -1,7 +1,7 @@
 bl_info = {
     "name" : "PMX setup helper for mmd_tools",
     "author" : "Kafuji",
-    "version" : (0,3,6),
+    "version" : (0,3,7),
     "blender" : (3,0,0),
     "location" : "View3D > Side Bar > MMD",
     "description" : "PMX setup helper utilities for mmd_tools",
@@ -11,6 +11,7 @@ bl_info = {
     "category" : "Object"
 }
 
+from . import mmd_bone_schema
 from . import operators
 from . import panels
 from . import properties
@@ -24,12 +25,13 @@ from . import contextmenu
 # Register This Addon
 def register():
     translation.register()
+    mmd_bone_schema.register()
     properties.register()
     preferences.register()
 
     # touch user_bones to sync mmd_bone_schema internal data
-    user_bones = preferences.get_prefs().user_bones
-    preferences.get_prefs().user_bones = user_bones
+    # user_bones = preferences.get_prefs().user_bones
+    # preferences.get_prefs().user_bones = user_bones
 
     operators.register()
     panels.register()
@@ -44,6 +46,7 @@ def unregister():
     operators.unregister()
     preferences.unregister()
     properties.unregister()
+    mmd_bone_schema.unregister()
     translation.unregister()
     return
 

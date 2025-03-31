@@ -1,10 +1,9 @@
 ################################################################################
 # Custom Panels
 ################################################################################
-from math import e
 import bpy
 
-from . import mmd_bone_schema as schema
+from . import mmd_bone_schema
 from . import helpers
 
 
@@ -46,15 +45,19 @@ class MH_PT_BoneMapper(bpy.types.Panel):
 	bl_category = "MMD"
 	bl_parent_id = "MH_PT_BoneNamingHelper"
 
-	def _draw_bone_mapping_ui(self, context, arm, layout):
+	def _draw_bone_mapping_ui(self, context:bpy.types.Context, arm:bpy.types.Object, layout:bpy.types.UILayout):
 		props = context.window_manager.mh_props
+		schema:mmd_bone_schema.MH_PG_MMDBoneSchema = arm.mmd_bone_schema
+
 		grid = layout.grid_flow(row_major=True)
 		grid.use_property_decorate = True
-		grid.column().prop(props, 'use_english')
+#		grid.column().prop(props, 'use_english')
 		grid.column().prop(props, 'show_suffix')
 		grid.column().prop(props, 'show_mmd_bone')
 		grid.column().prop(props, 'max_display')
-		schema.use_english(props.use_english)
+		# schema.use_english(props.use_english)
+
+		layout.prop(schema, 'additional_definitions_path')
 
 		bones = None
 		if context.mode in ('EDIT_ARMATURE'):
@@ -79,9 +82,9 @@ class MH_PT_BoneMapper(bpy.types.Panel):
 				box =layout.box()
 				row = box.split(align=True)
 				row.prop( bone, 'name', text='', icon='BONE_DATA')
-				row.prop( pbone, 'mmd_bone_map', text='')
-				if props.show_suffix:
-					row.prop( pbone, 'mmd_bone_suffix')
+				row.prop_search( pbone, 'mmd_bone_map', schema, 'bones', text="")
+				
+				row.prop( pbone, 'mmd_bone_suffix')
 				if props.show_mmd_bone:
 					row = box.split(align=True)
 					row.prop( pbone.mmd_bone, 'name_j', text='Japanese')
@@ -96,23 +99,24 @@ class MH_PT_BoneMapper(bpy.types.Panel):
 		row.prop(props, 'alert_only_essentials', toggle=True )
 
 		defined = [b.mmd_bone_map for b in arm.pose.bones if b.mmd_bone_map !='NONE']
-		undefined_bones = set(schema.bone_id_list(props.alert_only_essentials)) - set(defined)
+		undefined_bones = set(schema.get_bone_id_list(props.alert_only_essentials)) - set(defined)
 
 		if len(undefined_bones):
 			grid = box.grid_flow(row_major=True, columns=0,even_columns=False, even_rows=False, align=False)
 			grid.alert = True
 			for id in undefined_bones:
+				bone_data = schema.get_bonedata_by_id(id)
 				grid.column().label(
-					text = bpy.app.translations.pgettext(schema.bone_category_name(id))+': '+schema.bone_name(id, props.use_english), 
+					text = bpy.app.translations.pgettext(bone_data.category) + ': ' + bone_data.name_j, 
 					icon='BONE_DATA'
 					)
 		else:
 			box.label(text='All bones are set!', icon='INFO')
 
-		return len(undefined_bones) == 0
+		return
 
 	def draw(self, context):
-		arm = context.active_object
+		arm = context.object
 		layout = self.layout
 
 		col = layout.column()
@@ -142,14 +146,14 @@ class MH_PT_AdditoinalPMXBones(bpy.types.Panel):
 	bl_parent_id = "MH_PT_BoneMapper"
 
 	def draw(self,context):
-		prefs = context.preferences.addons[__package__].preferences
-		layout = self.layout
-		l = layout.column(align=True)
-		l.label(text='Additional PMX bone definitions file:')
-		l.prop(prefs,'user_bones', text='')
-		l = l.row()
-		l.alert = True
-		l.label(text='Please save addon preferenses to keep this!')
+		# prefs = context.preferences.addons[__package__].preferences
+		# layout = self.layout
+		# l = layout.column(align=True)
+		# l.label(text='Additional PMX bone definitions file:')
+		# l.prop(prefs,'user_bones', text='')
+		# l = l.row()
+		# l.alert = True
+		# l.label(text='Please save addon preferenses to keep this!')
 		return
 
 
@@ -336,7 +340,7 @@ class MH_OT_ExecuteNamingRule(bpy.types.Operator):
 
 			if rules.replace_lr:
 				if helpers.get_lr_from_name(name):
-					lr = schema.get_lr_string(b.name)
+					lr = arm.mmd_bone_schema.get_lr_string(b.name)
 					name = lr + helpers.remove_lr_from_name(b.name)
 			
 			for rule in rules.data:
@@ -434,6 +438,7 @@ class MH_PT_BoneSettigsTool(bpy.types.Panel):
 		l = self.layout
 		l.operator('mmd_helper.load_bone_settings_from_csv')
 		l.operator('mmd_helper.send_bones_to_clipboard', icon='COPYDOWN')
+		l.operator('mmd_helper.get_bones_from_clipboard', icon='PASTEDOWN')
 		return
 
 
@@ -690,7 +695,7 @@ _panels = [
 	MH_PT_BoneMapper,
 	MH_UL_NamingRules,
 	MH_PT_RuleBasedNamingTool,
-	MH_PT_AdditoinalPMXBones,
+	# MH_PT_AdditoinalPMXBones,
 	MH_PT_BoneSettigsTool,
 	MH_PT_MaterialSettingTool,
 	MH_PT_MaterialViewer,
