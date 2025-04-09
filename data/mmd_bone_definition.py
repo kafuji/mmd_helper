@@ -17,6 +17,7 @@ categories={
 # Bone definition - categoryID : list of ( boneID, name_j, name_e, is_essential )
 bones={
     'ROOT':[
+        ('NONE', 'なし', 'none', False),
         ('MASTER', '全ての親', 'master', True),
         ('CENTER', 'センター', 'center', True),
         ('GROOVE', 'グルーブ', 'groove', False),
@@ -24,9 +25,9 @@ bones={
     ],
 
     'TORSO':[
-        ('HIPS', '下半身', 'lower body', True),
-        ('SPINE', '上半身', 'upper body', True),
-        ('CHEST', '上半身2', 'upper body 2', True),
+        ('LOWER_BODY', '下半身', 'lower body', True),
+        ('UPPER_BODY', '上半身', 'upper body', True),
+        ('UPPER BODY 2', '上半身2', 'upper body 2', True),
         ('NECK', '首', 'neck', True),
         ('HEAD', '頭', 'head', True),
     ],
@@ -38,11 +39,11 @@ bones={
     
     'ARMS':[
         ('SHOULDER', '肩', 'shoulder', True),
-        ('UPPER_ARM', '腕', 'arm', True),
+        ('ARM', '腕', 'arm', True),
         ('ARM_TWIST', '腕捩', 'arm twist', True),
-        ('LOWER_ARM', 'ひじ', 'elbow', True),
-        ('HAND_TWIST', '手捩', 'wrist twist', True),
-        ('HAND', '手首', 'wrist', True),
+        ('ELBOW', 'ひじ', 'elbow', True),
+        ('WRIST_TWIST', '手捩', 'wrist twist', True),
+        ('WRIST', '手首', 'wrist', True),
     ],
 
     'FINGERS':[
@@ -56,12 +57,12 @@ bones={
     'LEGS':[
         ('LEG', '足', 'leg', True),
         ('KNEE', 'ひざ', 'knee', True),
-        ('FOOT', '足首', 'ankle', True),
+        ('ANKLE', '足首', 'ankle', True),
         ('TOE', 'つま先', 'toe', True),
     ],
 
     'IK':[
-        ('FOOT_IK', '足ＩＫ', 'ankle_ik', False),
+        ('ANKLE_IK', '足ＩＫ', 'ankle_ik', False),
         ('TOE_IK', 'つま先ＩＫ', 'toe_ik', False),
     ],
 

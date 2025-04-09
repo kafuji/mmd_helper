@@ -405,11 +405,12 @@ writeint = lambda i: str(i) if i is not None else ''
 
 def conv_loc_blender_to_mmd( loc: Vector, armature:bpy.types.Object, scale: float=12.5 ) -> Vector:
 	"""
-	Convert Blender's location to MMD's location
+	Convert Blender's location to MMD's world location
 	loc: armature space location
 	armature: armature object to translate local -> world
 	scale: scale factor for location
 	"""
+
 	# to World space, XYZ to XZY
 	loc = armature.matrix_world @ loc
 	loc = loc * scale
@@ -418,7 +419,7 @@ def conv_loc_blender_to_mmd( loc: Vector, armature:bpy.types.Object, scale: floa
 def conv_loc_mmd_to_blender( loc: Vector, armature:bpy.types.Object, scale: float=12.5 ) -> Vector:
 	"""
 	Convert MMD's location to Blender's location
-	loc: armature space location
+	loc: world space location
 	armature: armature object to translate world -> local
 	scale: scale factor for location
 	"""

@@ -1,4 +1,3 @@
-import hashlib
 from typing import List
 
 import bpy
@@ -221,11 +220,13 @@ __classes_in_order = (
 )
 
 # Init definitions on all armature objects on startup/load
+from bpy.app.handlers import persistent
+@persistent
 def on_load():
     for obj in (o for o in bpy.data.objects if o.pose):
         obj.mmd_bone_schema.load_definitions()
     return
-
+        
 def register():
     for cls in __classes_in_order:
         bpy.utils.register_class(cls)

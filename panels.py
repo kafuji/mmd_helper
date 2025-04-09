@@ -49,15 +49,15 @@ class MH_PT_BoneMapper(bpy.types.Panel):
 		props = context.window_manager.mh_props
 		schema:mmd_bone_schema.MH_PG_MMDBoneSchema = arm.mmd_bone_schema
 
+		layout.prop(schema, 'additional_definitions_path', text="Extra Bone Defs")
+
 		grid = layout.grid_flow(row_major=True)
 		grid.use_property_decorate = True
 #		grid.column().prop(props, 'use_english')
 		grid.column().prop(props, 'show_suffix')
 		grid.column().prop(props, 'show_mmd_bone')
-		grid.column().prop(props, 'max_display')
-		# schema.use_english(props.use_english)
+		# grid.column().prop(props, 'max_display')
 
-		layout.prop(schema, 'additional_definitions_path')
 
 		bones = None
 		if context.mode in ('EDIT_ARMATURE'):
@@ -81,8 +81,9 @@ class MH_PT_BoneMapper(bpy.types.Panel):
 				
 				box =layout.box()
 				row = box.split(align=True)
-				row.prop( bone, 'name', text='', icon='BONE_DATA')
-				row.prop_search( pbone, 'mmd_bone_map', schema, 'bones', text="")
+				row.alert = pbone.mmd_bone_map not in schema.bones
+				row.label( text=bone.name, icon='BONE_DATA')
+				row.prop_search( pbone, 'mmd_bone_map', schema, 'bones', text="", translate=False)
 				
 				row.prop( pbone, 'mmd_bone_suffix')
 				if props.show_mmd_bone:
@@ -90,7 +91,7 @@ class MH_PT_BoneMapper(bpy.types.Panel):
 					row.prop( pbone.mmd_bone, 'name_j', text='Japanese')
 					row.prop( pbone.mmd_bone, 'name_e', text='English')
 		else:
-			layout.box().label(text='Select any bone')
+			layout.box().label(text='Select any bones')
 
 		# list undefined bones            
 		box = layout.box()
