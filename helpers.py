@@ -543,7 +543,6 @@ class PmxBoneData: # reader/writer
 
 
 	def from_line(self, line:str):
-		print(f"Parsing PmxBone line: {line}")
 		# split line
 		values = line.split(',')
 		if len(values) < 40:
@@ -554,8 +553,6 @@ class PmxBoneData: # reader/writer
 		for col_data, value in zip(self.col_data, values):
 			attr_name, read, _ = col_data
 			setattr(self, attr_name, read(value))
-		
-		print(f"Parsed PmxBone: {self}")
 		return
 
 	def to_str(self):

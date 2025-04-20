@@ -33,6 +33,7 @@ class MH_PT_object_context_menu(bpy.types.Menu):
         if obj.type == 'ARMATURE':
             l.label(text="Bone Settings", icon='BONE_DATA')
             l.operator("mmd_helper.load_bone_settings_from_csv")
+            l.operator("mmd_helper.get_bones_from_clipboard")
             l.operator("mmd_helper.send_bones_to_clipboard")
 
             l.label(text="Material Settings", icon='MATERIAL')
@@ -49,6 +50,7 @@ class MH_PT_pose_context_menu(bpy.types.Menu):
     def draw(self, context):
         l = self.layout
         l.operator("mmd_helper.load_bone_settings_from_csv")
+        l.operator("mmd_helper.get_bones_from_clipboard")
         l.operator("mmd_helper.send_bones_to_clipboard")
 
         return

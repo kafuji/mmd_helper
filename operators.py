@@ -449,7 +449,7 @@ class MH_OT_SendBonesToClipboard(bpy.types.Operator):
 class MH_OT_GetBonesFromClipboard(bpy.types.Operator):
     bl_idname = "mmd_helper.get_bones_from_clipboard"
     bl_label = "Get Bones from Clipboard"
-    bl_description = "Get bones data from clipboard as CSV format. If no bones selected, all bones will be sent"
+    bl_description = "Get bone data from clipboard as CSV format. It will create new bones or update existing bones"
     bl_options = {"REGISTER","UNDO"}
 
     scale: FloatProperty(
@@ -476,6 +476,9 @@ class MH_OT_GetBonesFromClipboard(bpy.types.Operator):
             return {'CANCELLED'}
         
         for line in lines:
+            if not line.strip(): # skip empty lines
+                continue
+
             pmxbone = helpers.PmxBoneData(scale=self.scale)
             pmxbone.from_line(line)
             pmxbone.to_bone(arm)

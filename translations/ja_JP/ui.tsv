@@ -102,6 +102,9 @@ O	Set mmd_bone from CSV	mmd_boneをCSVから設定
 	Update MMD Bone Order	MMDボーン順序を更新
 	Sort MMD Bones according to CSV bone order. It creates representative object [armature_name + '_bone_order'] to keep bone order for mmd_tools	CSVのボーン順序に従ってMMDボーンをソートします。mmd_tool用にボーン順序を保持する代表オブジェクト[armature_name + '_bone_order']を作成します
 
+O	Get Bones from Clipboard	クリップボードからボーンを取得
+	Get bone data from clipboard as CSV format. It will create new bones or update existing bones	クリップボードからCSV形式のボーンデータを取得します。新しいボーンを作成するか、既存のボーンを更新します
+
 O	Send Bones to Clipboard	ボーンをクリップボードに送る
 	Send selected bones data to clipboard as CSV format. If no bones selected, all bones will be sent	選択ボーンのデータをCSV形式でクリップボードに送ります。選択ボーンがない場合、全ボーンが送られます
 	Scale factor for converting bone positions to MMD space	ボーン位置をMMD空間に変換するためのスケール値

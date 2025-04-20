@@ -17,7 +17,7 @@ categories={
 # Bone definition - categoryID : list of ( boneID, name_j, name_e, is_essential )
 bones={
     'ROOT':[
-        ('NONE', 'なし', 'none', False),
+        ('', 'なし', 'none', False),
         ('MASTER', '全ての親', 'master', True),
         ('CENTER', 'センター', 'center', True),
         ('GROOVE', 'グルーブ', 'groove', False),
