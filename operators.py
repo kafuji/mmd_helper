@@ -877,8 +877,18 @@ class MH_OT_Quick_Export_Objects(bpy.types.Operator, ExportHelper):
         default=True
     )
 
-    mod_show_flags = {}
-    obj_hide_flags = {}
+    triangulate: BoolProperty(
+        name="Triangulate",
+        description="Triangulate meshes before exporting (except objects with traiangulate modifier)",
+        default=True
+    )
+
+    __mod_show_flags = {}
+    __obj_hide_flags = {}
+    __temp_mods = []
+
+    __selected_objects = []
+    __active_object = None
 
     @classmethod
     def poll(cls, context:bpy.types.Context):
@@ -902,6 +912,10 @@ class MH_OT_Quick_Export_Objects(bpy.types.Operator, ExportHelper):
             self.report({'ERROR'}, "Unsupported object type")
             return {'CANCELLED'}
 
+        # Save selected objects
+        self.__selected_objects = context.selected_objects[:]
+        self.__active_object = context.active_object
+
         # print(f"Exporting objects: {[o.name for o in objs]}")
 
         # add mmd_root and armature to objs
@@ -913,34 +927,56 @@ class MH_OT_Quick_Export_Objects(bpy.types.Operator, ExportHelper):
         arm.select_set(True)
 
         # make other objects invisible (because we use visible_meshes_only option)
-        self.obj_hide_flags = {}
+        self.__obj_hide_flags = {}
         for o in [o for o in context.visible_objects if o not in objs]:
-            self.obj_hide_flags[o] = o.hide_viewport
+            self.__obj_hide_flags[o] = o.hide_viewport
             o.hide_viewport = True
 
-        # temporarily hide outline modifiers
-        self.mod_show_flags = {}
+        self.__mod_show_flags = {}
+        self.__temp_mods = []
+
+        # Process objects
         for o in objs:
+            # temporarily hide outline modifiers
             for mod in [m for m in o.modifiers if m.type == 'SOLIDIFY' and m.use_flip_normals]:
-                self.mod_show_flags[mod] = mod.show_viewport
+                self.__mod_show_flags[mod] = mod.show_viewport
                 mod.show_viewport = False
+            
+            # Temporarily add triangulate modifier to objects which not have it
+            if self.triangulate and o.type == 'MESH' and not any([m for m in o.modifiers if m.type == 'TRIANGULATE']):
+                mod:bpy.types.TriangulateModifier = o.modifiers.new(name="__triangulate_temp__", type='TRIANGULATE')
+                mod.show_viewport = True
+                mod.quad_method = 'BEAUTY'
+                mod.keep_custom_normals = True
+                self.__temp_mods.append(mod)
 
         return super().invoke(context, event)
 
 
     def execute(self, context:bpy.types.Context):
-        # call mmd_tools.iexport_pmx
+        # call mmd_tools.export_pmx
         bpy.ops.mmd_tools.export_pmx('EXEC_DEFAULT', filepath=self.filepath, copy_textures=False, visible_meshes_only=True)
+
+        # remove temporary triangulate modifiers
+        for mod in self.__temp_mods:
+            mod.id_data.modifiers.remove(mod)
 
         # restore visibility of modifiers
         mod:bpy.types.Modifier
-        for mod, flag in self.mod_show_flags.items():
+        for mod, flag in self.__mod_show_flags.items():
             mod.show_viewport = flag
         
         # restore visibility of other objects
         o: bpy.types.Object
-        for o, flag in self.obj_hide_flags.items():
+        for o, flag in self.__obj_hide_flags.items():
             o.hide_viewport = flag
+
+        # restore selected objects
+        for o in context.visible_objects:
+            o.select_set( o in self.__selected_objects )
+        
+        # restore active object
+        context.view_layer.objects.active = self.__active_object
 
         return {'FINISHED'}
 
