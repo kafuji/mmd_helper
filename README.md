@@ -112,4 +112,4 @@ Such as:
 
 ## Copyright
 
-© 2022 Kafuji Sato, all rights reserved.
+© 2022-2025 Kafuji Sato, all rights reserved.
