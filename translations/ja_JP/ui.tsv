@@ -16,6 +16,16 @@ O	Export VMD	VMDモーションをエクスポート
 	Select any armature	アーマチュアを選択してください
 	Select any bones	ボーンを選択してください
 	Material Settings	材質設定
+O	Auto Set Bone Mappings	ボーンマッピングを自動設定
+	Set by	設定方法
+	Actual Bone Name (JP)	実際のボーン名（日本語）
+	Set mappings by actual blender bone name. Expecting japanese names. e.g.'腕.L'	Blenderの実際のボーン名に基づいてマッピングを設定します。日本語名を想定しています。例：'腕.L'
+	Actual Bone Name (EN)	実際のボーン名（英語）
+	Set mappings by actual blender bone name. Expecting english names. e.g.'Arm.L'	Blenderの実際のボーン名に基づいてマッピングを設定します。英語名を想定しています。例：'Arm.L'
+	MMD Bone Name	MMDボーン名
+	Set mappings by mmd_bone.name_j. Use it for models imported by mmd_tools	mmd_bone.name_j に基づいてマッピングを設定します。mmd_toolsでインポートされたモデルに使用します
+
+
 O	Apply Bone Definitions	ボーン定義を適用
 O	Clear mmd_bone.name	mmd_bone.nameをクリア
 O	Clear MMD Material Names	MMD材質名をクリア

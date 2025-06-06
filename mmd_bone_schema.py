@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import bpy
 from bpy.props import *
@@ -41,6 +41,17 @@ class MH_PG_MMDBoneSchema(PropertyGroup):
         options=set(),
         update=lambda self, context: self.load_definitions()
     )
+
+    def enum_bone_definitions(self, only_essentials:bool=False) -> Tuple[str, str, str, str, bool]:
+        """
+        Iterate through bone definitions.
+        Yields a tuple of (bone_id, name_j, name_e, category_id, is_essential).
+        """
+        for bone in self.bones:
+            bone: MH_PG_BoneDefinitionItem
+            if only_essentials and not bone.is_essential:
+                continue
+            yield (bone.name, bone.name_j, bone.name_e, bone.category, bone.is_essential)
 
     def get_bonedata_by_id(self, id) -> MH_PG_BoneDefinitionItem:
         return self.bones.get(id, None)

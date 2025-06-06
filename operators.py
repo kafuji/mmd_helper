@@ -1,18 +1,155 @@
 ################################################################################
 # Custom Operators
 ################################################################################
+from typing import Tuple
 import bpy
 from bpy.props import *
 from .properties import *
 import mathutils
 import math
 import os
-
+import re
 
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 
+from . import mmd_bone_schema
 
-from . import mmd_bone_schema as schema
+
+# ０１２３４５６７８９ -> 0123456789
+to_ascii_num = str.maketrans(
+    "０１２３４５６７８９",
+    "0123456789"
+)
+
+# "bone_name.L.001" -> ("bone_name", "L", "001")
+def split_bone_name(name: str) -> Tuple[str, str, str]:
+    """ Split bone name and returns (basename, lr_suffix, number_suffix) """
+    match = re.match(r"([^\.]+)(?:\.(L|R))?(?:\.(\d+))?$", name)
+
+    if not match:
+        raise ValueError(f"Unexpected bone name format: {name}")
+
+    basename = match.group(1)
+    lr_suffix = match.group(2) if match.group(2) else ""
+    number_suffix = match.group(3) if match.group(3) else ""
+    return basename, lr_suffix, number_suffix
+
+# "腕捩1" -> ("腕捩", "1") / "親指０" -> ("親指", "０")
+def split_by_trailing_number(text: str) -> Tuple[str, str]:
+    """
+    Split a string into a base part and a trailing number part.
+    The trailing number can be either half-width (0-9) or full-width (０-９) digits.
+    """
+    match = re.match(r"(.*?)([0-9０-９]+)$", text)
+
+    if match:
+        return match.group(1), match.group(2)
+    else:
+        return text, ""
+
+
+#################################################################################
+class MH_OT_auto_set_mappings(bpy.types.Operator):
+    bl_idname = "mmd_helper.auto_set_mappings"
+    bl_label = "Auto Set Bone Mappings"
+    bl_description = "Automatically set bone mappings based on predefined rules"
+    bl_options = {"REGISTER", "UNDO"}
+
+    set_by: EnumProperty(
+        name="Set by",
+        items=[
+            ("BONE_NAME_JP", "Actual Bone Name (JP)", "Set mappings by actual blender bone name. Expecting japanese names. e.g.'腕.L'"),
+            ("BONE_NAME_EN", "Actual Bone Name (EN)", "Set mappings by actual blender bone name. Expecting english names. e.g.'Arm.L'"),
+            ("MMD_NAME", "MMD Bone Name", "Set mappings by mmd_bone.name_j. Use it for models imported by mmd_tools"),
+            # ("STRUCTURE", "Bone Structure", "Estimate mappings by bone structure"),
+        ],
+        default="BONE_NAME_JP",
+    )
+
+    # Show options first
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self, width=400)
+
+    # Main function
+    def execute(self, context):
+        arm = context.object
+        schema: mmd_bone_schema.MH_PG_MMDBoneSchema = arm.mmd_bone_schema
+        name_j_id_map = { name_j:id for id, name_j, _, _, _ in schema.enum_bone_definitions() }
+        name_e_id_map = { name_e:id for id, _, name_e, _, _ in schema.enum_bone_definitions() }
+
+        for pbone in arm.pose.bones:
+            if self.set_by == "BONE_NAME_JP":
+                base_name, lr_suffix, number_suffix = split_bone_name(pbone.name) # "人指０.L" -> ("人指０", "L", "")
+
+                # Split by trailing number
+                if base_name != "上半身2":
+                    base_name, trail_number = split_by_trailing_number(base_name) # "人指０" -> ("人指", "０")
+
+                if base_name not in name_j_id_map:
+                    continue
+
+                bone_id = name_j_id_map[base_name]
+
+                if "指" in base_name: # Finger bone specail case: Should set id on very first bone of the finger
+                    # Check if parent bone is not a finger bone (should be hand bone)
+                    if pbone.parent and '指' not in pbone.parent.name:
+                        pbone.mmd_bone_map = bone_id
+                else: # Normal bone
+                    pbone.mmd_bone_map = bone_id
+                    pbone.mmd_bone_suffix = trail_number
+
+            if self.set_by == "BONE_NAME_EN":
+                base_name, lr_suffix, number_suffix = split_bone_name(pbone.name.lower())
+                # Split by trailing number
+                if base_name != "upper body 2": # Originally contains "2" in the name
+                    base_name, trail_number = split_by_trailing_number(base_name)
+
+                if base_name not in name_e_id_map:
+                    continue
+
+                bone_id = name_e_id_map[base_name]
+
+                def is_finger(name: str) -> bool:
+                    return name.startswith("f_") or name in ("thumb", "index", "middle", "ring", "little")
+
+                if is_finger(base_name):
+                    if pbone.parent and not is_finger(pbone.parent.name):
+                        pbone.mmd_bone_map = bone_id
+                else: # Normal bone
+                    pbone.mmd_bone_map = bone_id
+                    pbone.mmd_bone_suffix = trail_number
+
+            if self.set_by == "MMD_NAME":
+                def remove_sayu_prefix(name: str) -> str:
+                    """ Remove '左' or '右' prefix from the name """
+                    if name.startswith('左'):
+                        return name[1:]
+                    elif name.startswith('右'):
+                        return name[1:]
+                    return name
+                
+                if not pbone.mmd_bone.name_j:
+                    continue
+
+                name_j = remove_sayu_prefix(pbone.mmd_bone.name_j) # "左腕" -> "腕"
+                if name_j != "上半身2":
+                    name_j, trail_number = split_by_trailing_number(name_j) # "腕捩1" -> ("腕捩", "1")
+
+                if name_j not in name_j_id_map:
+                    continue
+                bone_id = name_j_id_map[name_j]
+                if '指' in name_j:
+                    if pbone.parent and '指' not in pbone.parent.mmd_bone.name_j:
+                        pbone.mmd_bone_map = bone_id
+                else: # Normal bone
+                    pbone.mmd_bone_map = bone_id
+                    pbone.mmd_bone_suffix = trail_number
+
+        return {"FINISHED"}
+
+
+
 
 ################################################################################
 class MH_OT_ApplyMMDBoneMappings(bpy.types.Operator):
@@ -26,7 +163,7 @@ class MH_OT_ApplyMMDBoneMappings(bpy.types.Operator):
         arm = context.object
 
         for bone in arm.pose.bones:
-            schema.apply_bone_map(bone)
+            mmd_bone_schema.apply_bone_map(bone)
 
         return {"FINISHED"}
 

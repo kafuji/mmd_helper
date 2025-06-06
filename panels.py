@@ -126,6 +126,7 @@ class MH_PT_BoneMapper(bpy.types.Panel):
 			return
 
 		self._draw_bone_mapping_ui(context, arm, col)
+		col.operator('mmd_helper.auto_set_mappings', icon='AUTO')
 		col.operator('mmd_helper.apply_mmd_bone_mappings', icon='COPYDOWN')
 		col.operator('mmd_helper.clear_mmd_bone', icon='REMOVE')
 
