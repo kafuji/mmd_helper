@@ -1037,6 +1037,7 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         l = self.layout
 
         b = l.box()
+        b.use_property_split = True
         b.label(text="Preprocess")
         b.prop(self, 'hide_outline_mods')
         b.prop(self, 'triangulate')
@@ -1104,7 +1105,8 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
                 self.__temp_mods.append(mod)
             
             # convert edge scale VG to mmd_edge_scale
-            if self.edge_scale_source and o.vertex_groups.get(self.edge_scale_source):
+            if self.edge_scale_source and o.type == 'MESH':
+                self.report({'INFO'}, f"Converting edge scale from vertex group '{self.edge_scale_source}' to 'mmd_edge_scale' in {o.name}")
                 src_vg = o.vertex_groups.get(self.edge_scale_source)
                 if not src_vg:
                     self.report({'WARNING'}, f"Vertex group '{self.edge_scale_source}' not found in {o.name}. Skipping...")
