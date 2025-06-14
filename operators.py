@@ -996,7 +996,7 @@ class MH_OT_Export_PoseLib_To_CSV(bpy.types.Operator):
 
 
 ################################################################################
-class MH_OT_Quick_Export_Objects(bpy.types.Operator, ExportHelper):
+class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
     """Export selected objects to PMX file. Use it for objects which not require complex processing before exporting"""
     bl_idname = "mmd_helper.quick_export_objects"
     bl_label = "Quick Export PMX"
@@ -1020,12 +1020,28 @@ class MH_OT_Quick_Export_Objects(bpy.types.Operator, ExportHelper):
         default=True
     )
 
+    edge_scale_source: StringProperty(
+        name="Edge Scale Source",
+        description="Source for edge scale (Vertex Group). If empty, it uses 'mmd_edge_scale' vertex group",
+        default=""
+    )
+
     __mod_show_flags = {}
     __obj_hide_flags = {}
     __temp_mods = []
 
     __selected_objects = []
     __active_object = None
+
+    def draw(self, context):
+        l = self.layout
+
+        b = l.box()
+        b.label(text="Preprocess")
+        b.prop(self, 'hide_outline_mods')
+        b.prop(self, 'triangulate')
+        b.prop(self, 'edge_scale_source')
+
 
     @classmethod
     def poll(cls, context:bpy.types.Context):
@@ -1086,6 +1102,25 @@ class MH_OT_Quick_Export_Objects(bpy.types.Operator, ExportHelper):
                 mod.quad_method = 'BEAUTY'
                 mod.keep_custom_normals = True
                 self.__temp_mods.append(mod)
+            
+            # convert edge scale VG to mmd_edge_scale
+            if self.edge_scale_source and o.vertex_groups.get(self.edge_scale_source):
+                src_vg = o.vertex_groups.get(self.edge_scale_source)
+                if not src_vg:
+                    self.report({'WARNING'}, f"Vertex group '{self.edge_scale_source}' not found in {o.name}. Skipping...")
+                    continue
+
+                mmd_edge_scale = obj.vertex_groups.get('mmd_edge_scale')
+                if not mmd_edge_scale:
+                    mmd_edge_scale = o.vertex_groups.new(name='mmd_edge_scale')
+                
+                for v in obj.data.vertices:
+                    try:
+                        weight = src_vg.weight(v.index)
+                    except RuntimeError: # not assigned
+                        weight = 0.0
+
+                    mmd_edge_scale.add([v.index], weight, 'REPLACE')
 
         return super().invoke(context, event)
 
