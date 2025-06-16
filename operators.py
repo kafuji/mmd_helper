@@ -338,7 +338,7 @@ class MH_OT_LoadBoneSettingsFromCSV(bpy.types.Operator,ImportHelper):
         return mmd_root is not None
 
     # Main function
-    def execute(self, context:bpy.types.Context):
+    def execute(self, context: bpy.types.Context | None):
         # print("Loading CSV file...")
         arm = context.active_object
         mmd_root = helpers.find_mmd_root(arm)
@@ -1008,6 +1008,8 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         options={'HIDDEN'}
     )
 
+    # Preprocessing
+
     hide_outline_mods: BoolProperty(
         name="Hide Outline Modifiers",
         description="Temporarily hide outline modifiers while exporting (Outline modifiers: Solifiy with use_flip_normals)",
@@ -1026,6 +1028,56 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         default=""
     )
 
+    # Patching Properties
+    patch_export: BoolProperty(
+        name="Patch Export",
+        description="Enable patch export. Instead of exporting PMX, it will update existing PMX file with new data",
+        default=False
+    )
+
+    # # Default options for merging PMX models (from pmxmerge.py)
+    # options_default: Dict[str, Set[str]] = {
+    #     "append": {'MATERIAL','BONE', 'MORPH', 'PHYSICS', 'DISPLAY'},  # Specify which features in the patch model to append to the base model. Bones and materials are always appended.
+    #     "update": {'MAT_GEOM', 'MAT_SETTING', 'BONE_LOC', 'BONE_SETTING', 'MORPH', 'PHYSICS', 'DISPLAY'},  # Specify which features in the base model to update with the patch model
+    # }
+
+    append: EnumProperty(
+        name="Features to Append",
+        description="Select features to append to the existing PMX model",
+        items=[
+            ('MATERIAL', 'Material', "Append new materials (and corresponding mesh data)", 1),
+            ('BONE', 'Bone', "Append new bones", 2 ),
+            ('MORPH', 'Morph', "Append new morphs", 4),
+            ('PHYSICS', 'Physics', "Append new physics", 8),
+            ('DISPLAY', 'Display', "Append new display settings", 16),
+        ],
+        options={'ENUM_FLAG'},
+        default={'MATERIAL'},
+    )
+
+    update: EnumProperty(
+        name="Features to Update",
+        description="Select features to update in the existing PMX model",
+        items=[
+            ('MAT_GEOM', 'Material Geometry', "Update existing materials mesh data", 1),
+            ('MAT_SETTING', 'Material Settings', "Update existing material settings", 2),
+            ('BONE_LOC', 'Bone Location', "Update existing bone locations", 4),
+            ('BONE_SETTING', 'Bone Settings', "Update existing bone settings", 8),
+            ('MORPH', 'Morphs', "Update existing morphs", 16),
+            ('PHYSICS', 'Physics', "Update existing physics", 32),
+            ('DISPLAY', 'Display Settings', "Update existing display settings", 64),
+        ],
+        options={'ENUM_FLAG'},
+        default={'MAT_GEOM'},
+    )
+
+    overwrite: BoolProperty(
+        name="Overwrite Existing PMX",
+        description="Overwrite the existing PMX file. If disabled, it will create a new file with a 'patched' suffix",
+        default=False
+    )
+
+    # Internal state
     __mod_show_flags = {}
     __obj_hide_flags = {}
     __temp_mods = []
@@ -1036,6 +1088,7 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
     def draw(self, context):
         l = self.layout
 
+        # Preprocess options
         b = l.box()
         b.use_property_split = True
         b.label(text="Preprocess")
@@ -1043,6 +1096,21 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         b.prop(self, 'triangulate')
         b.prop(self, 'edge_scale_source')
 
+        l.separator()
+
+        # Patching options
+        l.prop(self, 'patch_export')
+        b = l.box()
+        b.enabled = self.patch_export
+        b.use_property_split = False
+        col = b.column(align=False)
+        col.label(text="Append New")
+        col.prop(self, 'append')
+        col.separator()
+        col.label(text="Update Existing")
+        col.prop(self, 'update')
+        col.separator()
+        col.prop(self, 'overwrite')
 
     @classmethod
     def poll(cls, context:bpy.types.Context):
@@ -1128,8 +1196,59 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
 
 
     def execute(self, context:bpy.types.Context):
+        filepath = self.filepath
+        # add _patch suffix if patch_export is enabled
+        if self.patch_export:
+            # self.filepath should point exsting PMX file
+            if not os.path.exists(self.filepath):
+                self.report({'ERROR'}, f"File {self.filepath} does not exist")
+                return {'CANCELLED'}
+
+            filepath = filepath.replace(".pmx", "_patch.pmx")
+
         # call mmd_tools.export_pmx
-        bpy.ops.mmd_tools.export_pmx('EXEC_DEFAULT', filepath=self.filepath, copy_textures=False, visible_meshes_only=True)
+        bpy.ops.mmd_tools.export_pmx('EXEC_DEFAULT', filepath=filepath, copy_textures=False, visible_meshes_only=True)
+        self.report({'INFO'}, f"PMX file exported to {filepath}")
+
+        # if patch_export is enabled, we need to update existing PMX file
+        if self.patch_export:
+            # import pmxmerge
+            from . import pmxmerge
+
+            # prepare paths
+            base_file = self.filepath
+            patch_file = filepath
+            out_file = base_file if self.overwrite else base_file.replace(".pmx", "_patched.pmx")
+
+            # DEBUG: print options
+            print(f"PMX Merge Options: append={self.append}, update={self.update}, base_file={base_file}, patch_file={patch_file}, out_file={out_file}")
+
+            self.report({'INFO'}, f"Merging PMX files: {base_file} + {patch_file} -> {out_file}")
+
+            # merge PMX files
+            pmxmerge.merge_pmx_files(
+                path_base = base_file,
+                path_patch = patch_file,
+                path_out = out_file,
+                append=self.append,
+                update=self.update,
+            )
+
+            # remove temporary patch file
+            if os.path.exists(patch_file):
+                os.remove(patch_file)
+            else:
+                self.report({'WARNING'}, f"Temporary patch file {patch_file} not found. It may be already removed.")
+            
+            # Report new file created
+            if out_file != base_file:
+                self.report({'INFO'}, f"Patched PMX file created: {out_file}")
+            else:
+                self.report({'INFO'}, f"PMX file patched: {base_file}")
+        else:
+            # report exported file
+            self.report({'INFO'}, f"PMX file exported: {filepath}")
+
 
         # remove temporary triangulate modifiers
         for mod in self.__temp_mods:
