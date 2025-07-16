@@ -18,15 +18,15 @@ class MH_PT_object_context_menu(bpy.types.Menu):
 
         obj = context.active_object
 
-        l.label(text="Import/Export", icon='FILE_TICK')
-        if obj.type == 'ARMATURE':
-            op = l.operator("mmd_tools.export_pmx", text="Export PMX")
-            op.copy_textures = False
-            op.visible_meshes_only = True
+        l.label(text="Export", icon='FILE_TICK')
+        # if obj.type == 'ARMATURE':
+        #     op = l.operator("mmd_tools.export_pmx", text="Export PMX")
+        #     op.copy_textures = False
+        #     op.visible_meshes_only = True
         
-            l.operator("mmd_tools.import_model", text="Import PMX/PMD")
-            l.operator("mmd_tools.import_vmd", text="Import VMD")
-            l.operator("mmd_tools.export_vmd", text="Export VMD")
+        #     l.operator("mmd_tools.import_model", text="Import PMX/PMD")
+        #     l.operator("mmd_tools.import_vmd", text="Import VMD")
+        #     l.operator("mmd_tools.export_vmd", text="Export VMD")
         if obj.type in {'MESH', 'ARMATURE'}:
             l.operator("mmd_helper.quick_export_objects")
 

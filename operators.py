@@ -1045,11 +1045,11 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         name="Features to Append",
         description="Select features to append to the existing PMX model",
         items=[
-            ('MATERIAL', 'Material', "Append new materials (and corresponding mesh data)", 1),
-            ('BONE', 'Bone', "Append new bones", 2 ),
-            ('MORPH', 'Morph', "Append new morphs", 4),
-            ('PHYSICS', 'Physics', "Append new physics", 8),
-            ('DISPLAY', 'Display', "Append new display settings", 16),
+            ('MATERIAL', "Material", "Append new materials (and corresponding mesh data including shape keys)", 1),
+            ('BONE', "Bone", "Append new bones", 2 ),
+            ('MORPH', "Morph", "Append new morphs", 4),
+            ('PHYSICS', "Physics", "Append new physics", 8),
+            ('DISPLAY', "Display Slots", "Append new display slots", 16),
         ],
         options={'ENUM_FLAG'},
         default={'MATERIAL'},
@@ -1059,13 +1059,13 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         name="Features to Update",
         description="Select features to update in the existing PMX model",
         items=[
-            ('MAT_GEOM', 'Material Geometry', "Update existing materials mesh data", 1),
-            ('MAT_SETTING', 'Material Settings', "Update existing material settings", 2),
-            ('BONE_LOC', 'Bone Location', "Update existing bone locations", 4),
-            ('BONE_SETTING', 'Bone Settings', "Update existing bone settings", 8),
-            ('MORPH', 'Morphs', "Update existing morphs", 16),
-            ('PHYSICS', 'Physics', "Update existing physics", 32),
-            ('DISPLAY', 'Display Settings', "Update existing display settings", 64),
+            ('MAT_GEOM', "Material Geometry", "Update existing materials mesh data (including shape keys)", 1),
+            ('MAT_SETTING', "Material Settings", "Update existing material settings", 2),
+            ('BONE_LOC', "Bone Location", "Update existing bone locations", 4),
+            ('BONE_SETTING', "Bone Settings", "Update existing bone settings", 8),
+            ('MORPH', "Morphs", "Update existing morphs", 16),
+            ('PHYSICS', "Physics", "Update existing physics", 32),
+            ('DISPLAY', "Display Slots", "Update existing display slots", 64),
         ],
         options={'ENUM_FLAG'},
         default={'MAT_GEOM'},
@@ -1087,6 +1087,8 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
 
     def draw(self, context):
         l = self.layout
+
+        l.label(text="* Exports selected objects only *")
 
         # Preprocess options
         b = l.box()

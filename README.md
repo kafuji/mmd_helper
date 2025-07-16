@@ -100,6 +100,30 @@ Such as:
 - Bone name conflict (same name_j or name_e on different bones)
 - Object not belongs to the model (not parented to the armature)
 
+## Quick Export and Patch Export
+
+This feature allows you to export PMX files quickly with minimal settings.
+It is useful for quick testing and iteration of the model.
+
+- Quick Export:
+  - It can be found in the context menu of the 3D Viewport (with selecting Armature or Object)
+  - It exports only visible meshes within the selected model / selected objects.
+  - It can ignore outline modifier (solidify with flipped normals) when exporting.
+  - It can convert specified vertex group to MMD edge weights.
+- Patch Export:
+  - It can be enabled in the Quick Export panel.
+  - It appends/updates the target PMX file with the exported meshes.
+  - You can specify which features to be appended/updated.
+  - Rest of features will be remain untouched in the target PMX file.
+
+## Change Log
+
+- 2025/07/16: Version 0.5.0
+  - Added Quick Export - Patch Export features.
+  - Updated translations.
+  - Removed unnecessary context menu items.
+  - Added changelog (this part) to README.md.
+
 ## Licence
 
 [GPL version 3](https://www.gnu.org/licenses/gpl-3.0.html)
