@@ -24,7 +24,7 @@ to_ascii_num = str.maketrans(
 # "bone_name.L.001" -> ("bone_name", "L", "001")
 def split_bone_name(name: str) -> Tuple[str, str, str]:
     """ Split bone name and returns (basename, lr_suffix, number_suffix) """
-    match = re.match(r"([^\.]+)(?:\.(L|R))?(?:\.(\d+))?$", name)
+    match = re.match(r"([^\.]+)(?:\.([a-zA-Z]))?(?:\.(\d+))?$", name)
 
     if not match:
         raise ValueError(f"Unexpected bone name format: {name}")
@@ -77,6 +77,7 @@ class MH_OT_auto_set_mappings(bpy.types.Operator):
         schema: mmd_bone_schema.MH_PG_MMDBoneSchema = arm.mmd_bone_schema
         name_j_id_map = { name_j:id for id, name_j, _, _, _ in schema.enum_bone_definitions() }
         name_e_id_map = { name_e:id for id, _, name_e, _, _ in schema.enum_bone_definitions() }
+        print(f"English Bone ID Map: {name_e_id_map}")
 
         for pbone in arm.pose.bones:
             if self.set_by == "BONE_NAME_JP":
@@ -105,20 +106,22 @@ class MH_OT_auto_set_mappings(bpy.types.Operator):
                 if base_name != "upper body 2": # Originally contains "2" in the name
                     base_name, trail_number = split_by_trailing_number(base_name)
 
-                if base_name not in name_e_id_map:
+                bone_id = name_e_id_map.get(base_name) or mmd_bone_schema.get_bone_id_from_name(base_name)
+                if not bone_id:
+                    # self.report({'WARNING'}, f"Bone ID not found for '{base_name}'. Skipping...")
                     continue
 
-                bone_id = name_e_id_map[base_name]
-
                 def is_finger(name: str) -> bool:
-                    return name.startswith("f_") or name in ("thumb", "index", "middle", "ring", "little")
+                    return name.startswith("f_") or name in ("thumb", "index", "middle", "ring", "little", "pinky")
 
                 if is_finger(base_name):
                     if pbone.parent and not is_finger(pbone.parent.name):
                         pbone.mmd_bone_map = bone_id
                 else: # Normal bone
                     pbone.mmd_bone_map = bone_id
-                    pbone.mmd_bone_suffix = trail_number
+                    pbone.mmd_bone_suffix = trail_number or number_suffix.lstrip("0") # Use number_suffix if exists, otherwise use empty string
+                    if pbone.mmd_bone_map == 'TONGUE':
+                        print(f"Setting tongue bone {pbone.name} to {bone_id} with suffix {pbone.mmd_bone_suffix}")
 
             if self.set_by == "MMD_NAME":
                 def remove_sayu_prefix(name: str) -> str:

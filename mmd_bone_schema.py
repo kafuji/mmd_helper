@@ -223,6 +223,15 @@ def apply_bone_map(pbone:bpy.types.PoseBone):
     pbone.id_data.mmd_bone_schema.apply_bone_map(pbone)
     return
 
+
+def get_bone_id_from_name(name: str) -> str:
+    """
+    Get bone ID from bone name.
+    This function uses the aliases defined in mmd_bone_definition.py to match the bone name.
+    """
+    return mmd_bone_definition.bone_id_from_name(name)
+
+
 # Register and unregister functions
 __classes_in_order = (
     MH_PG_BoneDefinitionItem,

@@ -118,6 +118,10 @@ It is useful for quick testing and iteration of the model.
 
 ## Change Log
 
+- 2025/07/23: Version 0.5.1
+  - Fixed bug with bone mapping utility where it raise error when using auto assign feature.
+  - Enhanced bone mapping utility to support various English bone names.
+
 - 2025/07/16: Version 0.5.0
   - Added Quick Export - Patch Export features.
   - Updated translations.
