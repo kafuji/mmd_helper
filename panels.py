@@ -23,7 +23,20 @@ class MH_PT_PMX_ExportHelper(bpy.types.Panel):
 				return True
 		return False
 
-	def draw(self,context):
+	def draw(self, context):
+		l = self.layout
+		obj = context.object
+		if not obj:
+			l.label(text="Select any object that belongs to the model.", icon='ERROR')
+			return
+
+		l.label(text=obj.name, icon='ARMATURE_DATA' if obj.type == 'ARMATURE' else 'OBJECT_DATA', translate=False)
+
+		mmd_root = helpers.find_mmd_root(obj)
+		if not mmd_root:
+			l.label(text="Not a part of a MMD model.", icon='ERROR')
+			return
+		l.label(text=mmd_root.name, icon='EMPTY_DATA')
 		return
 
 # Bone Naming Helper

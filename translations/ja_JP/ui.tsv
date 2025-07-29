@@ -1,6 +1,10 @@
 Context	Key	Translation
 	PMX Export Helper	PMXエクスポートヘルパー
-	
+
+	Select any object that belongs to the model.	モデルに属するオブジェクトを選択してください
+	Not a part of a MMD model.	MMDモデルの一部ではありません。
+	mmd_root not found. Please convert using mmd_tools.	mmd_rootが見つかりません。mmd_toolsを使用して変換してください。
+
 O	Export PMX	PMXモデルをエクスポート
 O	Import PMX/PMD	PMX/PMDモデルをインポート
 O	Import VMD	VMDモーションをインポート

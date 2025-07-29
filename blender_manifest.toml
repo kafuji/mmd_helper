@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "mmd_helper"
-version = "0.5.1"
+version = "0.5.2"
 name = "PMX setup helper for mmd_tools"
 tagline = "Tools for help setup PMX model data on top of mmd_tools"
 maintainer = "Kafuji Sato"

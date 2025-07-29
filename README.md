@@ -120,6 +120,7 @@ It is useful for quick testing and iteration of the model.
 
 - 2025/07/29: 0.5.2
   - Removing mmd_bone_map or setting it to empty string from UI now clear mmd_bone.name_j and name_e.
+  - Update the main panel to display current object selection to clarify the object is a part of MMD model.
 
 - 2025/07/23: 0.5.1
   - Fixed bug with bone mapping utility where it raise error when using auto assign feature.
