@@ -10,7 +10,7 @@ from . import mmd_bone_schema
 
 # bone mapping update callback, automatically set to opposite bone, fingers
 def on_update_mmd_bone_map(self, context):
-    mmd_bone_schema.apply_bone_map(self)
+    mmd_bone_schema.apply_bone_map(self, force_set=True)
     pbones = context.object.pose.bones
 
     if 0: # Disabled for some cases where the user intentionally set the same bone map
@@ -27,7 +27,7 @@ def on_update_mmd_bone_map(self, context):
     opposite_bone = pbones.get(helpers.flip_name(self.name))
     if opposite_bone and opposite_bone is not self:
         opposite_bone['mmd_bone_map'] = self['mmd_bone_map']
-        mmd_bone_schema.apply_bone_map(opposite_bone)
+        mmd_bone_schema.apply_bone_map(opposite_bone, force_set=True)
 
     return
 
@@ -38,7 +38,7 @@ def on_update_mmd_bone_suffix(self, context):
     opposite_bone = pbones.get(helpers.flip_name(self.name))
     if opposite_bone and opposite_bone is not self:
         opposite_bone['mmd_bone_suffix'] = self['mmd_bone_suffix']
-        mmd_bone_schema.apply_bone_map(opposite_bone)
+        mmd_bone_schema.apply_bone_map(opposite_bone, force_set=True)
     return
 
 

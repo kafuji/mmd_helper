@@ -118,11 +118,14 @@ It is useful for quick testing and iteration of the model.
 
 ## Change Log
 
-- 2025/07/23: Version 0.5.1
+- 2025/07/29: 0.5.2
+  - Removing mmd_bone_map or setting it to empty string from UI now clear mmd_bone.name_j and name_e.
+
+- 2025/07/23: 0.5.1
   - Fixed bug with bone mapping utility where it raise error when using auto assign feature.
   - Enhanced bone mapping utility to support various English bone names.
 
-- 2025/07/16: Version 0.5.0
+- 2025/07/16: 0.5.0
   - Added Quick Export - Patch Export features.
   - Updated translations.
   - Removed unnecessary context menu items.

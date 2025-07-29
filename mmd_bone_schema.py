@@ -156,9 +156,16 @@ class MH_PG_MMDBoneSchema(PropertyGroup):
         return lr_map['e'][lr] if eng else lr_map['j'][lr]
 
 
-    def apply_bone_map(self, pbone: bpy.types.PoseBone):
-        if not pbone.mmd_bone_map: # Not assigned, skip
-            return
+    def apply_bone_map(self, pbone: bpy.types.PoseBone, force_set:bool=False):
+        print(f"Applying bone map for {pbone.name} with map '{pbone.mmd_bone_map}'")
+        if not pbone.mmd_bone_map: # Not Assigned
+            if not force_set: # Not forced to set, do nothing
+                return
+            else: # Force set to none
+                pbone.mmd_bone.name_j = ""
+                pbone.mmd_bone.name_e = ""
+                print(f"Force set bone map for {pbone.name} to NONE")
+                return
 
         bone_data = self.get_bonedata_by_id(pbone.mmd_bone_map)
         if not bone_data: # Undefined bone map id, do nothing
@@ -219,8 +226,8 @@ class MH_PG_MMDBoneSchema(PropertyGroup):
         return
 
 
-def apply_bone_map(pbone:bpy.types.PoseBone):
-    pbone.id_data.mmd_bone_schema.apply_bone_map(pbone)
+def apply_bone_map(pbone:bpy.types.PoseBone, force_set:bool=False):
+    pbone.id_data.mmd_bone_schema.apply_bone_map(pbone, force_set)
     return
 
 
