@@ -1226,12 +1226,12 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
             out_file = base_file if self.overwrite else base_file.replace(".pmx", "_patched.pmx")
 
             # DEBUG: print options
-            print(f"PMX Merge Options: append={self.append}, update={self.update}, base_file={base_file}, patch_file={patch_file}, out_file={out_file}")
+            # print(f"PMX Merge Options: append={self.append}, update={self.update}, base_file={base_file}, patch_file={patch_file}, out_file={out_file}")
 
             self.report({'INFO'}, f"Merging PMX files: {base_file} + {patch_file} -> {out_file}")
 
             # merge PMX files
-            pmxmerge.merge_pmx_files(
+            result, msg = pmxmerge.merge_pmx_files(
                 path_base = base_file,
                 path_patch = patch_file,
                 path_out = out_file,
@@ -1239,12 +1239,16 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
                 update=self.update,
             )
 
+            if not result:
+                self.report({'ERROR'}, f"Failed to merge PMX files: {msg}")
+                return {'CANCELLED'}
+
             # remove temporary patch file
             if os.path.exists(patch_file):
                 os.remove(patch_file)
             else:
                 self.report({'WARNING'}, f"Temporary patch file {patch_file} not found. It may be already removed.")
-            
+
             # Report new file created
             if out_file != base_file:
                 self.report({'INFO'}, f"Patched PMX file created: {out_file}")
