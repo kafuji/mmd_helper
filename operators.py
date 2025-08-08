@@ -554,11 +554,13 @@ class MH_OT_SendBonesToClipboard(bpy.types.Operator):
         if not mmd_root:
             self.report({'ERROR'}, 'mmd_root not found in the model')
             return {'CANCELLED'}
-        
+
+        scale = self.scale * arm.matrix_world.to_scale()[0] # use armature world scale
+
         # create CSV data
         lines = []
         for bone in bones:
-            pmxbone = helpers.PmxBoneData(scale=self.scale)
+            pmxbone = helpers.PmxBoneData(scale=scale)
             categories = [c for c in self.categories]
             pmxbone.from_bone(bone, categories, use_pose=self.use_pose)
             lines.append( (bone, str(pmxbone) + '\n'))
