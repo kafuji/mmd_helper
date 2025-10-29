@@ -118,6 +118,12 @@ It is useful for quick testing and iteration of the model.
 
 ## Change Log
 
+- 2025/10/29: 0.5.3
+  - Fixed PMX Quick Export:
+    - Now it correctly works with the lastest mmd_tools.
+    - Enhanced error reporting when Base or patch PMX file has bad elements (duplicate/empty names).
+    - The operator now properly restores viewport state after execution or cancellation.
+
 - 2025/07/29: 0.5.2
   - Removing mmd_bone_map or setting it to empty string from UI now clear mmd_bone.name_j and name_e.
   - Update the main panel to display current object selection to clarify the object is a part of MMD model.

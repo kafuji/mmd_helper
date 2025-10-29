@@ -1214,7 +1214,10 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
             filepath = filepath.replace(".pmx", "_patch.pmx")
 
         # call mmd_tools.export_pmx
-        bpy.ops.mmd_tools.export_pmx('EXEC_DEFAULT', filepath=filepath, copy_textures=False, visible_meshes_only=True)
+        try:
+            bpy.ops.mmd_tools.export_pmx('EXEC_DEFAULT', filepath=filepath, copy_textures=False, visible_meshes_only=True)
+        except TypeError:
+            bpy.ops.mmd_tools.export_pmx('EXEC_DEFAULT', filepath=filepath, copy_textures_mode='NONE', visible_meshes_only=True)
         self.report({'INFO'}, f"PMX file exported to {filepath}")
 
         # if patch_export is enabled, we need to update existing PMX file
@@ -1243,6 +1246,7 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
 
             if not result:
                 self.report({'ERROR'}, f"Failed to merge PMX files: {msg}")
+                self.post_execute(context)
                 return {'CANCELLED'}
 
             # remove temporary patch file
@@ -1260,7 +1264,11 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
             # report exported file
             self.report({'INFO'}, f"PMX file exported: {filepath}")
 
+        self.post_execute(context)
 
+        return {'FINISHED'}
+
+    def post_execute(self, context:bpy.types.Context):
         # remove temporary triangulate modifiers
         for mod in self.__temp_mods:
             mod.id_data.modifiers.remove(mod)
@@ -1282,7 +1290,6 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         # restore active object
         context.view_layer.objects.active = self.__active_object
 
-        return {'FINISHED'}
 
 
 # register & unregister

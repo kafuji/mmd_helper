@@ -38,7 +38,7 @@ LICENCE: GPL-3.0-or-later (https://www.gnu.org/licenses/gpl-3.0.en.html)
 """
 
 import os
-from typing import Dict, Set, Tuple
+from typing import Dict, Set, Tuple, List
 
 from . import pypmx  # Import the pypmx module for PMX model manipulation
 
@@ -46,8 +46,11 @@ import logging
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(filename)s : %(levelname)s - %(message)s')
 
-def validate_elements(model: pypmx.Model) -> bool:
-    """Check for duplicate elements. Also check unnamed elements. Returns True if either duplicates or unnamed elements are found."""
+def validate_elements(model: pypmx.Model) -> Tuple[bool, List[str]]:
+    """Check for duplicate elements. Also check unnamed elements.
+    Returns True if either duplicates or unnamed elements are found.
+    """
+    msgs = []
 
     def check(collection: list) -> bool:
         """Check if there are duplicate items in the list."""
@@ -56,11 +59,13 @@ def validate_elements(model: pypmx.Model) -> bool:
         unnamed_found = False
         for item in collection:
             if not item.name:
-                logging.critical(f"Unnamed item found: {item} (type: {type(item)}, index: {collection.index(item)})")
+                msgs.append(f"Unnamed item found: {item} (type: {type(item)}, index: {collection.index(item)})")
+                logging.critical(msgs[-1])
                 unnamed_found = True
                 continue
             if item.name in seen:
-                logging.critical(f"Duplicate item found: {item.name} (type: {type(item)}, index: {collection.index(item)})")
+                msgs.append(f"Duplicate item found: '{item.name}' (type: {type(item)}, index: {collection.index(item)})")
+                logging.critical(msgs[-1])
                 duplicate_found = True
                 continue
             seen.add(item.name)
@@ -74,7 +79,7 @@ def validate_elements(model: pypmx.Model) -> bool:
     ret |= check(model.rigids)
     ret |= check(model.joints)
 
-    return ret
+    return ret, msgs
 
 
 def append_update_bones(base: pypmx.Model, patch: pypmx.Model, append: Set, update: Set) -> None:
@@ -454,16 +459,18 @@ def merge_pmx_files(
         path_out = os.path.join(base_dir, path_out)
 
     # Validate base model elements for duplicates
-    if validate_elements(base):
-        return False, f"Base model {path_base} has duplicate elements, merging may not work correctly. Please fix the base model before merging."
+    validation = validate_elements(base)
+    if validation[0]:
+        return False, f"Base model {path_base} has bad elements: \n" + "\n".join(validation[1]) + "\nMerging may not work correctly. Please fix the base model before merging."
 
     patch = load_pmx_file(path_patch)
     if not patch:
         return False, f"Failed to load patch model from '{path_patch}'. Please check the file path and format."
     post_load_report(patch, f"Patch model '{path_patch}'")
 
-    if validate_elements(patch):
-        return False, f"Patch model {path_patch} has duplicate elements, merging may not work correctly. Please fix the patch model before merging."
+    validation = validate_elements(patch)
+    if validation[0]:
+        return False, f"Patch model {path_patch} has bad elements: \n" + "\n".join(validation[1]) + "\nMerging may not work correctly. Please fix the patch model before merging."
 
     logging.info(f"Options: Appending {append} from patch model, updating {update} in base model.")
     merge_models(base, patch, append=append, update=update)
