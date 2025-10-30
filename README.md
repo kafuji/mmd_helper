@@ -118,6 +118,11 @@ It is useful for quick testing and iteration of the model.
 
 ## Change Log
 
+- 2025/10/31: 0.5.4
+  - PMX Quick Export: Improved export process for quicker iterations.
+    - Updated version to 1.3.0.
+    - It now handles unnamed and duplicate-named elements automatically in NamedElements class.
+
 - 2025/10/29: 0.5.3
   - Fixed PMX Quick Export:
     - Now it correctly works with the lastest mmd_tools.
