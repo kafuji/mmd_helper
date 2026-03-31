@@ -4,7 +4,7 @@ This is a Blender addon that provides a set of tools to help exporting PMX files
 
 ## Requirements
 
-- Blender 3 and 4 series
+- Blender 3 or later
 - recent mmd_tools
 
 ## Features
@@ -14,7 +14,7 @@ This is a Blender addon that provides a set of tools to help exporting PMX files
   - Rule based renaming tool. Supporting Japanese LR identifiers.
 - Load mmd_material settings and material/object sort order from CSV file from PMX Editor.
 - Mine Sweeper - detects flaws that leads unexpected result.
-
+  
 ## Usage
 
 1. Install the addon.
@@ -117,6 +117,9 @@ It is useful for quick testing and iteration of the model.
   - Rest of features will be remain untouched in the target PMX file.
 
 ## Change Log
+
+- 2026//03/31: 0.5.5
+  - PMX Quick Export: Added option to sort faces by normal direction after triangulation to reduce alpha blending artifacts (Experimental).
 
 - 2025/10/31: 0.5.4
   - PMX Quick Export: Improved export process for quicker iterations.

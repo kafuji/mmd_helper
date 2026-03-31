@@ -165,6 +165,12 @@ O	Quick Export PMX	PMXクイックエクスポート
 	Hide Outline Modifiers	アウトラインモディファイアを非表示
 	Temporarily hide outline modifiers while exporting (Outline modifiers: Solifiy with use_flip_normals)	エクスポート時にアウトラインモディファイアを一時的に非表示にします（アウトラインモディファイア：use_flip_normalsを使用したSolidify）
 
+	Triangulate	三角面化
+	Triangulate faces before exporting (except objects with traiangulate modifier)	エクスポート前に面を三角面化します（三角面化モディファイアを持つオブジェクトを除く）
+
+	Sort Polygons by Normal	法線でポリゴンをソート
+	Sort triangulated polygons by normal direction to reduce alpha blending artifacts (Experimental)	三角面化されたポリゴンを法線方向でソートして、アルファブレンドのアーティファクトを減らします（実験的機能）
+
 	Patch Export	パッチエクスポート
 	Enable patch export. Instead of exporting PMX, it will update existing PMX file with new data	パッチエクスポートを有効にします。PMXをエクスポートする代わりに、既存のPMXファイルを新しいデータで更新します
 

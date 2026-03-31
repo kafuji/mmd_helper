@@ -1,4 +1,10 @@
 {
-    "editor.autoClosingBrackets": "never",
-    "editor.autoClosingQuotes": "never"
+    "python.analysis.autoImportCompletions": false,
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingModuleSource": "none"
+    },
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}",
+    ]
 }

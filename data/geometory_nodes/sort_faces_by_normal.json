@@ -1,0 +1,755 @@
+{
+    "type": "GEOMETRY",
+    "bl_idname": "GeometryNodeTree",
+    "name": "Sort Faces by Normal",
+    "description": "",
+    "color_tag": "NONE",
+    "is_modifier": true,
+    "is_tool": false,
+    "interface": [
+        {
+            "item_type": "SOCKET",
+            "name": "Geometry",
+            "description": "",
+            "socket_type": "NodeSocketGeometry",
+            "in_out": "OUTPUT",
+            "hide_value": false,
+            "hide_in_modifier": false,
+            "force_non_field": false,
+            "default_attribute_name": ""
+        },
+        {
+            "item_type": "SOCKET",
+            "name": "Geometry",
+            "description": "",
+            "socket_type": "NodeSocketGeometry",
+            "in_out": "INPUT",
+            "hide_value": false,
+            "hide_in_modifier": false,
+            "force_non_field": false,
+            "default_attribute_name": ""
+        }
+    ],
+    "nodes": [
+        {
+            "bl_idname": "NodeGroupInput",
+            "name": "Group Input",
+            "location": [
+                -1760.0,
+                140.0
+            ],
+            "location_absolute": [
+                -1760.0,
+                140.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Group Input",
+            "bl_description": "Expose connected data from inside a node group as inputs to its interface",
+            "bl_icon": "NONE",
+            "inputs": [],
+            "properties": {}
+        },
+        {
+            "bl_idname": "GeometryNodeSortElements",
+            "name": "Sort Elements",
+            "location": [
+                -320.0,
+                220.0
+            ],
+            "location_absolute": [
+                -320.0,
+                220.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Sort Elements",
+            "bl_description": "Rearrange geometry elements, changing their indices",
+            "bl_icon": "NONE",
+            "domain": "FACE",
+            "inputs": [
+                {
+                    "identifier": "Selection",
+                    "default_value": true
+                },
+                {
+                    "identifier": "Group ID",
+                    "default_value": 0
+                },
+                {
+                    "identifier": "Sort Weight",
+                    "default_value": 0.0
+                }
+            ],
+            "properties": {}
+        },
+        {
+            "bl_idname": "GeometryNodeInputNormal",
+            "name": "Normal",
+            "location": [
+                -860.0,
+                80.0
+            ],
+            "location_absolute": [
+                -860.0,
+                80.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Normal",
+            "bl_description": "Retrieve a unit length vector indicating the direction pointing away from the geometry at each element",
+            "bl_icon": "NONE",
+            "legacy_corner_normals": false,
+            "inputs": [],
+            "properties": {}
+        },
+        {
+            "bl_idname": "GeometryNodeInputPosition",
+            "name": "Position",
+            "location": [
+                -1220.0,
+                0.0
+            ],
+            "location_absolute": [
+                -1220.0,
+                0.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Position",
+            "bl_description": "Retrieve a vector indicating the location of each element",
+            "bl_icon": "NONE",
+            "inputs": [],
+            "properties": {}
+        },
+        {
+            "bl_idname": "ShaderNodeVectorMath",
+            "name": "Vector Math.001",
+            "location": [
+                -1040.0,
+                200.0
+            ],
+            "location_absolute": [
+                -1040.0,
+                200.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Vector Math",
+            "bl_description": "Perform vector math operation",
+            "bl_icon": "NONE",
+            "operation": "SUBTRACT",
+            "inputs": [
+                {
+                    "identifier": "Vector",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Vector_001",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Vector_002",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Scale",
+                    "default_value": 1.0
+                }
+            ],
+            "properties": {}
+        },
+        {
+            "bl_idname": "ShaderNodeVectorMath",
+            "name": "Vector Math.003",
+            "location": [
+                -680.0,
+                200.0
+            ],
+            "location_absolute": [
+                -680.0,
+                200.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Vector Math",
+            "bl_description": "Perform vector math operation",
+            "bl_icon": "NONE",
+            "operation": "DOT_PRODUCT",
+            "inputs": [
+                {
+                    "identifier": "Vector",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Vector_001",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Vector_002",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Scale",
+                    "default_value": 1.0
+                }
+            ],
+            "properties": {}
+        },
+        {
+            "bl_idname": "GeometryNodeBoundBox",
+            "name": "Bounding Box",
+            "location": [
+                -1580.0,
+                200.0
+            ],
+            "location_absolute": [
+                -1580.0,
+                200.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Bounding Box",
+            "bl_description": "Calculate the limits of a geometry's positions and generate a box mesh with those dimensions",
+            "bl_icon": "NONE",
+            "inputs": [
+                {
+                    "identifier": "Use Radius",
+                    "default_value": true
+                }
+            ],
+            "properties": {}
+        },
+        {
+            "bl_idname": "ShaderNodeVectorMath",
+            "name": "Vector Math.004",
+            "location": [
+                -1400.0,
+                200.0
+            ],
+            "location_absolute": [
+                -1400.0,
+                200.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Vector Math",
+            "bl_description": "Perform vector math operation",
+            "bl_icon": "NONE",
+            "operation": "ADD",
+            "inputs": [
+                {
+                    "identifier": "Vector",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Vector_001",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Vector_002",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Scale",
+                    "default_value": 1.0
+                }
+            ],
+            "properties": {}
+        },
+        {
+            "bl_idname": "ShaderNodeVectorMath",
+            "name": "Vector Math.005",
+            "location": [
+                -1220.0,
+                200.0
+            ],
+            "location_absolute": [
+                -1220.0,
+                200.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Vector Math",
+            "bl_description": "Perform vector math operation",
+            "bl_icon": "NONE",
+            "operation": "DIVIDE",
+            "inputs": [
+                {
+                    "identifier": "Vector",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Vector_001",
+                    "default_value": [
+                        2.0,
+                        2.0,
+                        2.0
+                    ]
+                },
+                {
+                    "identifier": "Vector_002",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Scale",
+                    "default_value": 1.0
+                }
+            ],
+            "properties": {}
+        },
+        {
+            "bl_idname": "ShaderNodeVectorMath",
+            "name": "Vector Math.006",
+            "location": [
+                -860.0,
+                200.0
+            ],
+            "location_absolute": [
+                -860.0,
+                200.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Vector Math",
+            "bl_description": "Perform vector math operation",
+            "bl_icon": "NONE",
+            "operation": "NORMALIZE",
+            "inputs": [
+                {
+                    "identifier": "Vector",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Vector_001",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Vector_002",
+                    "default_value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "identifier": "Scale",
+                    "default_value": 1.0
+                }
+            ],
+            "properties": {}
+        },
+        {
+            "bl_idname": "ShaderNodeMath",
+            "name": "Math",
+            "location": [
+                -500.0,
+                220.0
+            ],
+            "location_absolute": [
+                -500.0,
+                220.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Math",
+            "bl_description": "Perform math operations",
+            "bl_icon": "NONE",
+            "operation": "SUBTRACT",
+            "use_clamp": true,
+            "inputs": [
+                {
+                    "identifier": "Value",
+                    "default_value": 1.0
+                },
+                {
+                    "identifier": "Value_001",
+                    "default_value": 0.5
+                },
+                {
+                    "identifier": "Value_002",
+                    "default_value": 0.5
+                }
+            ],
+            "properties": {}
+        },
+        {
+            "bl_idname": "NodeGroupInput",
+            "name": "Group Input.003",
+            "location": [
+                -500.0,
+                320.0
+            ],
+            "location_absolute": [
+                -500.0,
+                320.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Group Input",
+            "bl_description": "Expose connected data from inside a node group as inputs to its interface",
+            "bl_icon": "NONE",
+            "inputs": [],
+            "properties": {}
+        },
+        {
+            "bl_idname": "NodeGroupOutput",
+            "name": "Group Output",
+            "location": [
+                -100.0,
+                220.0
+            ],
+            "location_absolute": [
+                -100.0,
+                220.0
+            ],
+            "width": 140.0,
+            "height": 100.0,
+            "label": "",
+            "parent": "None",
+            "warning_propagation": "ALL",
+            "use_custom_color": false,
+            "color": [
+                0.6079999804496765,
+                0.6079999804496765,
+                0.6079999804496765
+            ],
+            "show_options": true,
+            "show_preview": false,
+            "hide": false,
+            "mute": false,
+            "show_texture": false,
+            "bl_label": "Group Output",
+            "bl_description": "Output data from inside of a node group",
+            "bl_icon": "NONE",
+            "inputs": [],
+            "properties": {}
+        }
+    ],
+    "links": [
+        {
+            "from_node": "Position",
+            "from_socket_id": "Position",
+            "from_socket_name": "Position",
+            "to_node": "Vector Math.001",
+            "to_socket_id": "Vector_001",
+            "to_socket_name": "Vector"
+        },
+        {
+            "from_node": "Normal",
+            "from_socket_id": "Normal",
+            "from_socket_name": "Normal",
+            "to_node": "Vector Math.003",
+            "to_socket_id": "Vector_001",
+            "to_socket_name": "Vector"
+        },
+        {
+            "from_node": "Group Input",
+            "from_socket_id": "Socket_0",
+            "from_socket_name": "Geometry",
+            "to_node": "Bounding Box",
+            "to_socket_id": "Geometry",
+            "to_socket_name": "Geometry"
+        },
+        {
+            "from_node": "Bounding Box",
+            "from_socket_id": "Min",
+            "from_socket_name": "Min",
+            "to_node": "Vector Math.004",
+            "to_socket_id": "Vector",
+            "to_socket_name": "Vector"
+        },
+        {
+            "from_node": "Bounding Box",
+            "from_socket_id": "Max",
+            "from_socket_name": "Max",
+            "to_node": "Vector Math.004",
+            "to_socket_id": "Vector_001",
+            "to_socket_name": "Vector"
+        },
+        {
+            "from_node": "Vector Math.005",
+            "from_socket_id": "Vector",
+            "from_socket_name": "Vector",
+            "to_node": "Vector Math.001",
+            "to_socket_id": "Vector",
+            "to_socket_name": "Vector"
+        },
+        {
+            "from_node": "Vector Math.004",
+            "from_socket_id": "Vector",
+            "from_socket_name": "Vector",
+            "to_node": "Vector Math.005",
+            "to_socket_id": "Vector",
+            "to_socket_name": "Vector"
+        },
+        {
+            "from_node": "Vector Math.001",
+            "from_socket_id": "Vector",
+            "from_socket_name": "Vector",
+            "to_node": "Vector Math.006",
+            "to_socket_id": "Vector",
+            "to_socket_name": "Vector"
+        },
+        {
+            "from_node": "Vector Math.006",
+            "from_socket_id": "Vector",
+            "from_socket_name": "Vector",
+            "to_node": "Vector Math.003",
+            "to_socket_id": "Vector",
+            "to_socket_name": "Vector"
+        },
+        {
+            "from_node": "Vector Math.003",
+            "from_socket_id": "Value",
+            "from_socket_name": "Value",
+            "to_node": "Math",
+            "to_socket_id": "Value_001",
+            "to_socket_name": "Value"
+        },
+        {
+            "from_node": "Group Input.003",
+            "from_socket_id": "Socket_0",
+            "from_socket_name": "Geometry",
+            "to_node": "Sort Elements",
+            "to_socket_id": "Geometry",
+            "to_socket_name": "Geometry"
+        },
+        {
+            "from_node": "Math",
+            "from_socket_id": "Value",
+            "from_socket_name": "Value",
+            "to_node": "Sort Elements",
+            "to_socket_id": "Sort Weight",
+            "to_socket_name": "Sort Weight"
+        },
+        {
+            "from_node": "Sort Elements",
+            "from_socket_id": "Geometry",
+            "from_socket_name": "Geometry",
+            "to_node": "Group Output",
+            "to_socket_id": "Socket_1",
+            "to_socket_name": "Geometry"
+        }
+    ]
+}

@@ -13,7 +13,7 @@ import re
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 from . import mmd_bone_schema
-
+from . import addon_data
 
 # ０１２３４５６７８９ -> 0123456789
 to_ascii_num = str.maketrans(
@@ -1023,9 +1023,16 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
 
     triangulate: BoolProperty(
         name="Triangulate",
-        description="Triangulate meshes before exporting (except objects with traiangulate modifier)",
+        description="Triangulate faces before exporting (except objects with traiangulate modifier)",
         default=True
     )
+
+    sort_faces: BoolProperty(
+        name="Sort Polygons by Normal",
+        description="Sort triangulated polygons by normal direction to reduce alpha blending artifacts (Experimental)",
+        default=True
+    )
+
 
     edge_scale_source: StringProperty(
         name="Edge Scale Source",
@@ -1101,6 +1108,8 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         b.label(text="Preprocess")
         b.prop(self, 'hide_outline_mods')
         b.prop(self, 'triangulate')
+        if self.triangulate:
+            b.prop(self, 'sort_faces')
         b.prop(self, 'edge_scale_source')
 
         l.separator()
@@ -1178,6 +1187,13 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
                 mod.quad_method = 'BEAUTY'
                 mod.keep_custom_normals = True
                 self.__temp_mods.append(mod)
+
+                # After triangulation, sort faces by normal direction to reduce alpha blending artifacts (Experimental)
+                if self.sort_faces:
+                    name = "Sort Faces by Normal"
+                    mod:bpy.types.NodesModifier = o.modifiers.new(name=name, type='NODES')
+                    mod.node_group = addon_data.ensure_addon_data_node_group(name)
+
             
             # convert edge scale VG to mmd_edge_scale
             if self.edge_scale_source and o.type == 'MESH':
