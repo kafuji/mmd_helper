@@ -1097,6 +1097,8 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
     __selected_objects = []
     __active_object = None
 
+    __target_objects = [] # objects to export (including mmd_root and armature)
+
     def draw(self, context):
         l = self.layout
 
@@ -1143,9 +1145,9 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         obj = context.object
         
         if obj.type == 'MESH':
-            objs = helpers.get_target_objects(context.selected_objects, type_filter='MESH')
+            self.__target_objects = helpers.get_target_objects(context.selected_objects, type_filter='MESH')
         elif obj.type == 'ARMATURE':
-            objs = helpers.get_objects_by_armature(obj, context.visible_objects)
+            self.__target_objects = helpers.get_objects_by_armature(obj, context.visible_objects)
         else:
             self.report({'ERROR'}, "Unsupported object type")
             return {'CANCELLED'}
@@ -1157,16 +1159,16 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         # print(f"Exporting objects: {[o.name for o in objs]}")
 
         # add mmd_root and armature to objs
-        mmd_root = helpers.find_mmd_root(objs[0])
+        mmd_root = helpers.find_mmd_root(self.__target_objects[0])
         arm = helpers.find_armature_within_children(mmd_root)
-        objs += [mmd_root, arm]
+        self.__target_objects += [mmd_root, arm]
 
         # make armature is active
         arm.select_set(True)
 
         # make other objects invisible (because we use visible_meshes_only option)
         self.__obj_hide_flags = {}
-        for o in [o for o in context.visible_objects if o not in objs]:
+        for o in [o for o in context.visible_objects if o not in self.__target_objects]:
             self.__obj_hide_flags[o] = o.hide_viewport
             o.hide_viewport = True
 
@@ -1174,7 +1176,7 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
         self.__temp_mods = []
 
         # Process objects
-        for o in objs:
+        for o in self.__target_objects:
             # temporarily hide outline modifiers
             for mod in [m for m in o.modifiers if m.type == 'SOLIDIFY' and m.use_flip_normals]:
                 self.__mod_show_flags[mod] = mod.show_viewport
@@ -1193,43 +1195,47 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
                     name = "Sort Faces by Normal"
                     mod:bpy.types.NodesModifier = o.modifiers.new(name=name, type='NODES')
                     mod.node_group = addon_data.ensure_addon_data_node_group(name)
+            
+        return super().invoke(context, event)
 
-            edge_scale_converted = False
+
+    def execute(self, context:bpy.types.Context):
+        # pre export processing
+        for o in self.__target_objects:
             # convert edge scale VG to mmd_edge_scale
             if self.edge_scale_source and o.type == 'MESH':
                 self.report({'INFO'}, f"Converting edge scale from vertex group '{self.edge_scale_source}' to 'mmd_edge_scale' in {o.name}")
-                edge_scale_converted = True
                 src_vg = o.vertex_groups.get(self.edge_scale_source)
                 if not src_vg:
                     self.report({'WARNING'}, f"Vertex group '{self.edge_scale_source}' not found in {o.name}. Skipping...")
                     continue
 
-                mmd_edge_scale = obj.vertex_groups.get('mmd_edge_scale')
+                mmd_edge_scale = o.vertex_groups.get('mmd_edge_scale')
                 if not mmd_edge_scale:
                     mmd_edge_scale = o.vertex_groups.new(name='mmd_edge_scale')
                 
-                for v in obj.data.vertices:
+                for v in o.data.vertices:
                     try:
                         weight = src_vg.weight(v.index)
-                    except RuntimeError: # not assigned treat as 0.0
-                        weight = 0.0
+                        if weight == 0.0:
+                            raise RuntimeError("Weight is zero")
+                    except RuntimeError: # not assigned
+                        weight = 1e-6 # assign a small weight to avoid cleaned up by mmd_tools
 
                     mmd_edge_scale.add([v.index], weight, 'REPLACE')
-            
-            # Ensure all verteices have mmd_edge scale value
-            if not edge_scale_converted and o.type == 'MESH':
-                mmd_edge_scale = obj.vertex_groups.get('mmd_edge_scale')
-                if mmd_edge_scale:
-                    for v in obj.data.vertices:
-                        try:
-                            weight = mmd_edge_scale.weight(v.index)
-                        except RuntimeError: # not assigned treat as 0.0
-                            mmd_edge_scale.add([v.index], 0.0, 'REPLACE')
+            # ensure all vertices have mmd_edge_scale weight, otherwise MMD app will treat them as 1.0 and cause edge scaling issues
+            mmd_edge_scale = o.vertex_groups.get('mmd_edge_scale')
+            if mmd_edge_scale:
+                self.report({'INFO'}, f"Ensuring all vertices have 'mmd_edge_scale' weight in {o.name}")
+                for v in o.data.vertices:
+                    try:
+                        weight = mmd_edge_scale.weight(v.index)
+                        if weight == 0.0:
+                            raise RuntimeError("Weight is zero")
+                    except RuntimeError:
+                        weight = 1e-6
+                        mmd_edge_scale.add([v.index], weight, 'REPLACE')
 
-        return super().invoke(context, event)
-
-
-    def execute(self, context:bpy.types.Context):
         filepath = self.filepath
         # add _patch suffix if patch_export is enabled
         if self.patch_export:
