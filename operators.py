@@ -1194,10 +1194,11 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
                     mod:bpy.types.NodesModifier = o.modifiers.new(name=name, type='NODES')
                     mod.node_group = addon_data.ensure_addon_data_node_group(name)
 
-            
+            edge_scale_converted = False
             # convert edge scale VG to mmd_edge_scale
             if self.edge_scale_source and o.type == 'MESH':
                 self.report({'INFO'}, f"Converting edge scale from vertex group '{self.edge_scale_source}' to 'mmd_edge_scale' in {o.name}")
+                edge_scale_converted = True
                 src_vg = o.vertex_groups.get(self.edge_scale_source)
                 if not src_vg:
                     self.report({'WARNING'}, f"Vertex group '{self.edge_scale_source}' not found in {o.name}. Skipping...")
@@ -1210,10 +1211,20 @@ class MH_OT_quick_export_objects(bpy.types.Operator, ExportHelper):
                 for v in obj.data.vertices:
                     try:
                         weight = src_vg.weight(v.index)
-                    except RuntimeError: # not assigned
+                    except RuntimeError: # not assigned treat as 0.0
                         weight = 0.0
 
                     mmd_edge_scale.add([v.index], weight, 'REPLACE')
+            
+            # Ensure all verteices have mmd_edge scale value
+            if not edge_scale_converted and o.type == 'MESH':
+                mmd_edge_scale = obj.vertex_groups.get('mmd_edge_scale')
+                if mmd_edge_scale:
+                    for v in obj.data.vertices:
+                        try:
+                            weight = mmd_edge_scale.weight(v.index)
+                        except RuntimeError: # not assigned treat as 0.0
+                            mmd_edge_scale.add([v.index], 0.0, 'REPLACE')
 
         return super().invoke(context, event)
 
