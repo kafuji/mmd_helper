@@ -21,13 +21,13 @@ def on_update_mmd_bone_map(self, context):
                     continue
 
                 if bone.mmd_bone_map == self.mmd_bone_map:
-                    bone['mmd_bone_map'] = 'NONE'
+                    bone.mmd_bone_map = 'NONE'
 
     # bone map mirror
     opposite_bone = pbones.get(helpers.flip_name(self.name))
-    if opposite_bone and opposite_bone is not self:
-        opposite_bone['mmd_bone_map'] = self['mmd_bone_map']
-        mmd_bone_schema.apply_bone_map(opposite_bone, force_set=True)
+    if opposite_bone and opposite_bone is not self and self.mmd_bone_map != opposite_bone.mmd_bone_map:
+        opposite_bone.mmd_bone_map = self.mmd_bone_map
+        # mmd_bone_schema.apply_bone_map(opposite_bone, force_set=True)
 
     return
 
@@ -36,9 +36,9 @@ def on_update_mmd_bone_suffix(self, context):
     mmd_bone_schema.apply_bone_map(self)
     pbones = context.object.pose.bones
     opposite_bone = pbones.get(helpers.flip_name(self.name))
-    if opposite_bone and opposite_bone is not self:
-        opposite_bone['mmd_bone_suffix'] = self['mmd_bone_suffix']
-        mmd_bone_schema.apply_bone_map(opposite_bone, force_set=True)
+    if opposite_bone and opposite_bone is not self and self.mmd_bone_suffix != opposite_bone.mmd_bone_suffix:
+        opposite_bone.mmd_bone_suffix = self.mmd_bone_suffix
+        # mmd_bone_schema.apply_bone_map(opposite_bone, force_set=True)
     return
 
 
