@@ -83,6 +83,7 @@ class MH_PG_MMDBoneSchema(PropertyGroup):
     def __load_default_definitions(self):
         # Clear existing bone definitions
         self.bones.clear()
+        self.essential_bones.clear()
 
         # load default bone definitions
         for cat, items in mmd_bone_definition.bones.items():

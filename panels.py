@@ -120,6 +120,9 @@ class MH_PT_BoneMapper(bpy.types.Panel):
 			grid.alert = True
 			for id in undefined_bones:
 				bone_data = schema.get_bonedata_by_id(id)
+				if not bone_data:
+					print(f"Bone data not found for ID: {id}")
+					continue
 				grid.column().label(
 					text = bpy.app.translations.pgettext(bone_data.category) + ': ' + bone_data.name_j, 
 					icon='BONE_DATA'
